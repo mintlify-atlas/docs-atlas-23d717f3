@@ -1,5 +1,5 @@
 ---
-title: "Using the Horizon OC Ultrahand Overlay"
+title: "Horizon OC Overlay: Navigate All Menus and Settings"
 sidebarTitle: "Overlay"
 description: "Navigate the Horizon OC Ultrahand overlay to set clocks, apply temporary overrides, and access settings — all without leaving your game."
 ---
@@ -39,11 +39,12 @@ The main menu presents five entries. Each one maps to a distinct configuration c
     Apply immediate clock changes to CPU, GPU, or RAM. These overrides are session-only — they reset automatically on the next boot and do not write to any profile.
   </Card>
   <Card title="Settings" icon="gear">
-    Access all persistent configuration: General, Governor, Safety, KIP, RAM, CPU, GPU, Display, and Experimental settings.
+    Access all persistent configuration: General Settings, Governor Settings, Safety Settings, Save KIP Settings, RAM Settings, CPU Settings, GPU Settings, Display Settings, and Experimental.
+  </Card>
+  <Card title="About" icon="circle-info">
+    Displays the current Horizon OC version, CUST revision, KIP version, hardware information (SoC type, console model, speedos), and project credits.
   </Card>
 </CardGroup>
-
-The fifth entry, **About**, shows the current Horizon OC version, CUST revision, KIP version, hardware information, and project credits.
 
 ## Profile Types at a Glance
 
@@ -72,6 +73,9 @@ The **Settings** entry opens a menu containing all persistent configuration sect
   </Card>
   <Card title="Safety Settings" icon="shield">
     Thermal throttle threshold and related safety caps.
+  </Card>
+  <Card title="Save KIP Settings" icon="floppy-disk">
+    Writes all pending RAM, CPU, and GPU KIP parameter changes to the active `hoc.kip` patch on the SD card. A full cold reboot is required after saving for changes to take effect.
   </Card>
   <Card title="RAM Settings" icon="memory">
     KIP-level EMC clock, voltage, step mode, and memory timing configuration.

@@ -1,5 +1,5 @@
 ---
-title: "Clock Profiles: Per-Game and Global Overrides"
+title: "Horizon OC Clock Profiles: Per-Game and Global Config"
 sidebarTitle: "Profiles"
 description: "Configure per-game application profiles and a global profile in Horizon OC to automatically apply the right CPU, GPU, and RAM clocks for each context."
 ---
@@ -24,13 +24,13 @@ The **Temporary Override** is layered on top of whatever profile is active. It o
 
 Each App Profile and the Global Profile contain separate frequency entries for each of the five `HocClkProfile` slots defined in `board.h`. This means you can set different clocks depending on how the console is being used at that moment.
 
-| Enum Value | Internal Key | Display Name | Notes |
-|---|---|---|---|
-| `HocClkProfile_Handheld` | `handheld` | Handheld | Battery-only, undocked |
-| `HocClkProfile_HandheldCharging` | `handheld_charging` | Charging | **Not a real profile** — marker only; not user-configurable |
-| `HocClkProfile_HandheldChargingUSB` | `handheld_charging_usb` | USB Charger | Charging via a standard USB-A/C charger |
-| `HocClkProfile_HandheldChargingOfficial` | `handheld_charging_official` | PD Charger | Charging via a USB Power Delivery (PD) charger |
-| `HocClkProfile_Docked` | `docked` | Docked | Console in the dock (not shown on Switch Lite) |
+| Enum Name | Value | Internal Key | Display Name | Notes |
+|---|---|---|---|---|
+| `HocClkProfile_Handheld` | `0` | `handheld` | Handheld | Battery-only, undocked |
+| `HocClkProfile_HandheldCharging` | `1` | `handheld_charging` | Charging | **Not a real profile** — marker only; not user-configurable |
+| `HocClkProfile_HandheldChargingUSB` | `2` | `handheld_charging_usb` | USB Charger | Charging via a standard USB-A/C charger |
+| `HocClkProfile_HandheldChargingOfficial` | `3` | `handheld_charging_official` | PD Charger | Charging via a USB Power Delivery (PD) charger |
+| `HocClkProfile_Docked` | `4` | `docked` | Docked | Console in the dock (not shown on Switch Lite) |
 
 <Note>
 `HocClkProfile_HandheldCharging` exists in the enum as a boundary marker between handheld and USB-charger slots. It is not presented in the overlay UI and cannot be assigned frequencies directly.
@@ -40,14 +40,13 @@ Each App Profile and the Global Profile contain separate frequency entries for e
 
 Within each profile slot you can set a target frequency for the following modules, as defined by the `HocClkModule` enum in `board.h`:
 
-| Module | Enum | Description |
-|---|---|---|
-| `CPU` | `HocClkModule_CPU` | Cortex-A57 cluster clock |
-| `GPU` | `HocClkModule_GPU` | Maxwell/Ampere GPU clock |
-| `MEM` | `HocClkModule_MEM` | EMC/LPDDR4 memory clock |
-| `Governor` | `HocClkModule_Governor` | Per-profile governor state override |
-
-`HocClkModule_Display` exists in the enum but is managed separately through Display Settings and is not directly set per profile in the App/Global Profile screens.
+| Module | Enum | Value | Description |
+|---|---|---|---|
+| `CPU` | `HocClkModule_CPU` | `0` | Cortex-A57 cluster clock |
+| `GPU` | `HocClkModule_GPU` | `1` | Maxwell/Ampere GPU clock |
+| `MEM` | `HocClkModule_MEM` | `2` | EMC/LPDDR4 memory clock |
+| `Governor` | `HocClkModule_Governor` | `3` | Per-profile governor state override |
+| `Display` | `HocClkModule_Display` | `4` | Display clock — present in the enum but managed separately through Display Settings; not directly set per profile in the App/Global Profile screens. |
 
 Setting a frequency to **0** (or leaving it as **Default**) tells `hoc-clk` not to override that module in that slot, falling back down the priority chain.
 
@@ -116,7 +115,7 @@ All four steps are evaluated per-module independently. You can set only a CPU fr
 
 The following illustrates what a per-game profile might look like for a demanding title where you want maximum performance when docked but conservative clocks on battery:
 
-```
+```text
 Title: 0x0100F2C0115B6000  (example title ID)
 
   Handheld slot:
@@ -132,7 +131,7 @@ Title: 0x0100F2C0115B6000  (example title ID)
 
 And the Global Profile fallback for everything else:
 
-```
+```text
   Handheld slot:
     CPU  →  Default
     GPU  →  Default

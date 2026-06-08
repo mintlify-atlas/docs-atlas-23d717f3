@@ -8,15 +8,15 @@ The Switch GPU (an NVIDIA Maxwell-architecture core embedded in the Tegra X1/X1+
 
 ## GPU Undervolt Levels
 
-Horizon OC defines five GPU undervolt tiers in `board.h`. The level you choose determines both the per-frequency voltage table applied and the safe maximum clock available:
+Horizon OC defines five GPU undervolt tiers via the `GPUUndervoltLevel` enum in `board.h`. The level you choose determines both the per-frequency voltage table applied and the safe maximum clock available:
 
-| Enum Value | Config String | Description |
-|---|---|---|
-| `GPUUVLevel_NoUV` | No UV | No undervolting; stock voltage table. Lowest clock ceiling per watt. |
-| `GPUUVLevel_SLT` | SLT | Slight undervolt optimised for standard operating temperatures. |
-| `GPUUVLevel_HiOPT` | HiOPT | Aggressive efficiency optimisation; best performance-per-watt for most users. |
-| `GPUUVLevel_HiOPT15` | HiOPT-15mV | HiOPT with an additional 15 mV reduction; highest efficiency, requires stable silicon. |
-| `GPUUVLevel_HighUV` | High UV | **Overvolt** tier — raises GPU voltage to unlock the highest safe clock on Mariko. |
+| Value | Enum Name | Description |
+|-------|-----------|-------------|
+| 0 | `GPUUVLevel_NoUV` | No undervolting; stock voltage table. Lowest clock ceiling per watt. |
+| 1 | `GPUUVLevel_SLT` | Slight undervolt optimised for standard operating temperatures. |
+| 2 | `GPUUVLevel_HiOPT` | Aggressive efficiency optimisation; best performance-per-watt for most users. |
+| 3 | `GPUUVLevel_HiOPT15` | HiOPT with an additional 15 mV reduction; highest efficiency, requires stable silicon. |
+| 4 | `GPUUVLevel_HighUV` | **Overvolt** tier — raises GPU voltage to unlock the highest safe clock on Mariko. |
 
 <Tip>
 Start with **HiOPT** (`GPUUVLevel_HiOPT`). It provides the best efficiency for the majority of Mariko and Erista units without pushing voltages to extremes, and raises the Mariko handheld GPU cap to 614 MHz while keeping thermals well in check.
@@ -26,28 +26,28 @@ Start with **HiOPT** (`GPUUVLevel_HiOPT`). It provides the best efficiency for t
 
 | MHz | Notes |
 |-----|-------|
-| 1536 | Mariko absolute maximum — **extremely dangerous**, risk of hardware damage |
-| 1459 | Very high Mariko OC; requires High UV |
-| 1382 | High Mariko OC; requires High UV |
-| 1305 | High Mariko OC; requires High UV |
-| 1267 | NVIDIA T214 (Mariko) rated clock |
-| 1228 | Mariko safe maximum with High UV |
-| 1152 | Mariko safe maximum with HiOPT-15mV |
-| 1075 | Mariko HiOPT safe max; **Erista absolute maximum** — very dangerous on Erista |
-| 998 | NVIDIA T210 (Erista) rated clock |
-| 960 | Erista only — safe maximum with High UV or HiOPT-15mV |
-| 921 | Erista no-UV safe maximum |
+| 1536 | Absolute max clock on mariko. very dangerous |
+| 1459 | — |
+| 1382 | — |
+| 1305 | — |
+| 1267 | NVIDIA T214 (Mariko) rating |
+| 1228 | Mariko High UV safe clock |
+| 1152 | Mariko hiOpt-15mV max clock |
+| 1075 | Mariko hiOpt max clock. Absolute max clock on erista. very dangerous |
+| 998 | NVIDIA T210 (Erista) rating |
+| 960 | Erista only — erista high uv/hiOpt-15mV safe max clock |
+| 921 | Erista no UV max clock |
 | 844 | — |
-| 768 | Official docked clock; Mariko handheld cap with High UV |
-| 691 | Mariko handheld cap with HiOPT-15mV |
-| 614 | Mariko handheld cap with HiOPT |
+| 768 | Official docked |
+| 691 | — |
+| 614 | — |
 | 537 | — |
-| 460 | Handheld maximum (Erista cap in handheld) |
-| 384 | Official handheld clock |
-| 307 | Official handheld clock |
+| 460 | Max handheld |
+| 384 | Official handheld |
+| 307 | Official handheld |
 | 230 | — |
 | 153 | — |
-| 76 | Boost mode clock |
+| 76 | Boost mode |
 
 ## Handheld and Charging Caps
 

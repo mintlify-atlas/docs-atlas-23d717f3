@@ -1,7 +1,7 @@
 ---
 title: "Voltage Tuning: Undervolting and Overvolting on Switch"
 sidebarTitle: "Voltage Tuning"
-description: "Tune CPU, GPU, and RAM voltages in Horizon OC to reduce heat and power draw with undervolting, or enable higher clocks safely with carefully raised voltages."
+description: "Tune CPU, GPU, and RAM voltages in Horizon OC to reduce heat and power draw by undervolting, or stabilise higher clocks with carefully raised voltages."
 ---
 
 Voltage tuning is the process of adjusting the supply voltage for individual hardware modules to either reduce power consumption and heat (undervolting) or to stabilise higher-than-default clock frequencies (overvolting). On Switch hardware, the two goals are not mutually exclusive: undervolting the GPU and CPU at moderate clocks can reduce thermal throttle pressure, allowing the RAM clock to be raised without exceeding thermal limits. Overvolting is only ever necessary when pushing clock frequencies beyond what the silicon can sustain at its nominal voltage, and carries the risk of excess heat and reduced component longevity if overdone. Horizon OC exposes fine-grained per-frequency voltage tables for every major module, giving advanced users precise control over the entire DVFS (Dynamic Voltage and Frequency Scaling) operating curve.
@@ -183,7 +183,14 @@ Each key name encodes the RAM frequency in kHz. For example, `g_soc_volt_2133000
 
 ## DVFS Mode Interaction
 
-Horizon OC's DVFS governor (`dvfs_mode`) controls how the system transitions between operating points. When `DVFSMode_Hijack` is active, Horizon OC intercepts PCV (Power Control and Voltage) DVFS requests and applies the custom voltage tables defined above. If DVFS is disabled, voltage transitions revert to Nintendo's stock behaviour. An offset (`dvfs_offset`) allows fine-tuning the DVFS switching thresholds. See the [DVFS Governor](/advanced/dvfs-governor) page for detailed configuration.
+Horizon OC's DVFS governor (`dvfs_mode`) controls how the system transitions between operating points. Two modes are defined in `board.h`:
+
+| Value | Name | Description |
+|-------|------|-------------|
+| 0 | `DVFSMode_Disabled` | Stock Nintendo DVFS behaviour; custom voltage tables are not applied. |
+| 1 | `DVFSMode_Hijack` | Horizon OC intercepts PCV DVFS requests and applies the custom voltage tables defined above. |
+
+When `DVFSMode_Hijack` is active, Horizon OC intercepts PCV (Power Control and Voltage) DVFS requests and applies the custom voltage tables defined above. If DVFS is disabled, voltage transitions revert to Nintendo's stock behaviour. An offset (`dvfs_offset`) allows fine-tuning the DVFS switching thresholds. See the [DVFS Governor](/advanced/dvfs-governor) page for detailed configuration.
 
 <Note>
 The `live_cpu_uv` config flag (`HocClkConfigValue_LiveCpuUv`) enables or disables real-time CPU undervolt application. When enabled, CPU voltage changes take effect immediately without requiring a reboot. This is useful for iterative tuning but should be disabled in production configurations once stable values are found.

@@ -1,7 +1,7 @@
 ---
-title: "Custom LPDDR4X Memory Timings for Nintendo Switch"
+title: "Custom LPDDR4X Memory Timings for Nintendo Switch OC"
 sidebarTitle: "RAM Timings"
-description: "Configure custom LPDDR4X memory timings in Horizon OC — tRCD, tRP, tRAS, tRRD, tRFC, tRTW, tWTR, tREFI — for stability and performance at higher RAM clocks."
+description: "Configure LPDDR4X memory timings in Horizon OC — tRCD, tRP, tRAS, tRRD, tRFC, tRTW, tWTR, tREFI — for stability and performance at higher RAM clocks."
 ---
 
 Memory timings define how long the memory controller waits between successive operations on the LPDDR4X chips inside your Switch. At stock frequencies the factory defaults are conservative enough to guarantee compatibility across all production silicon. When you push the EMC (External Memory Controller) clock to 1600, 1866, or 2133 MT/s, those defaults can become the limiting factor for stability — both too loose (wasted cycles, bandwidth left on the table) and too tight (bit errors, crashes, NAND corruption) are failure modes. Horizon OC exposes the full set of timing registers through its KIP configuration layer so you can dial in values that match your specific hardware.
@@ -188,7 +188,7 @@ The `tableConf` selection must be consistent with the `timingEmcTbreak` value in
 
 Horizon OC ships pre-validated timing files in the `timings/` directory. The current presets cover Mariko/AA hardware at four target frequencies:
 
-```
+```text
 timings/
 └── Mariko/
     └── AA/

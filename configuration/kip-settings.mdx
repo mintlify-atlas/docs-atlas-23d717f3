@@ -1,7 +1,7 @@
 ---
-title: "KIP Settings: Persistent Boot-Time Configuration"
+title: "Horizon OC KIP Settings: Persistent Boot-Time Params"
 sidebarTitle: "KIP Settings"
-description: "KIP settings in Horizon OC control boot-time CPU, GPU, and RAM parameters embedded in the hoc.kip patch — they persist across reboots and require a save action."
+description: "KIP settings embed CPU, GPU, and RAM parameters in the hoc.kip boot patch. Changes persist across reboots but require Save KIP Settings and a cold reboot."
 ---
 
 KIP settings are a separate layer of configuration from clock profiles. While profiles control which frequencies `hoc-clk` requests at runtime, KIP settings are parameters baked directly into the `hoc.kip` kernel patch at boot time. They control voltage tables, overclock ceilings, memory timings, and other low-level values that the operating system reads before the `hoc-clk` sysmodule ever starts. Changes to KIP settings do not take effect until you explicitly save them and reboot the console.
@@ -68,6 +68,10 @@ These keys control the EMC (External Memory Controller) and LPDDR4 voltage/clock
   **SOC Vmax.** Maximum voltage (mV) allowed on the VDD_SOC rail. Raising this enables higher EMC and GPU frequencies on Mariko but increases heat output and battery draw.
 </ParamField>
 
+<ParamField path="emc_dvb_shift" type="s32">
+  **EMC DVB Shift.** Signed offset applied to the EMC dynamic voltage/biasing (DVB) table entries. A positive value raises the EMC rail voltage at each frequency step; a negative value lowers it. Use with care — incorrect values can cause memory errors or instability.
+</ParamField>
+
 <ParamField path="step_mode" type="StepMode (u32)">
   **Step Mode.** Controls the EMC frequency step granularity used when the sysmodule changes RAM clocks. Corresponds to the `StepMode` enum:
 
@@ -82,6 +86,96 @@ These keys control the EMC (External Memory Controller) and LPDDR4 voltage/clock
 <Tip>
 Start EMC overclocking with `StepMode_Jedec` (`2`) and `common_emc_mem_volt` raised by 25–50 mV above stock before attempting frequencies above 2133 MHz. Stability issues at high clocks are most often voltage-related rather than frequency-ceiling-related.
 </Tip>
+
+---
+
+## Memory Timings
+
+These KIP keys override individual LPDDR4 timing parameters. All values are in EMC clock cycles unless noted otherwise. Setting a parameter to `0` leaves the timing at its JEDEC default. Only adjust these if you have a specific reason — incorrect timings cause hard memory errors.
+
+<ParamField path="t1_trcd" type="u32">
+  **t1 – tRCD.** RAS-to-CAS delay. Number of cycles between activating a row and issuing a read or write command to a column in that row.
+</ParamField>
+
+<ParamField path="t2_trp" type="u32">
+  **t2 – tRP.** Row Precharge time. Cycles required to precharge (close) an open row before a new row can be activated.
+</ParamField>
+
+<ParamField path="t3_tras" type="u32">
+  **t3 – tRAS.** Active-to-Precharge delay. Minimum cycles the row must remain active before it can be precharged.
+</ParamField>
+
+<ParamField path="t4_trrd" type="u32">
+  **t4 – tRRD.** Row Activate-to-Activate delay. Minimum cycles between consecutive row activate commands to different banks.
+</ParamField>
+
+<ParamField path="t5_trfc" type="u32">
+  **t5 – tRFC.** Refresh Cycle time. Cycles required to complete an auto-refresh operation. Longer at higher density; reducing it aggressively causes data corruption.
+</ParamField>
+
+<ParamField path="t6_trtw" type="u32">
+  **t6 – tRTW.** Read-to-Write delay. Minimum idle cycles on the data bus between the end of a read burst and the start of a write burst.
+</ParamField>
+
+<ParamField path="t7_twtr" type="u32">
+  **t7 – tWTR.** Write-to-Read delay. Minimum cycles between the end of a write burst and a subsequent read command.
+</ParamField>
+
+<ParamField path="t8_trefi" type="u32">
+  **t8 – tREFI.** Average Refresh Interval. Cycles between consecutive auto-refresh commands. Increasing this value reduces refresh overhead and can improve bandwidth at the cost of retention margin.
+</ParamField>
+
+<ParamField path="t2_tRP_cap" type="u32">
+  **t2 – tRP 1333 WL Cap.** Upper cap applied to tRP when operating at the 1333 MHz write-latency level. Prevents the precharge timing from exceeding this value at lower frequencies.
+</ParamField>
+
+<ParamField path="timingEmcTbreak" type="u32">
+  **Timing EMC Tbreak.** EMC Tbreak timing parameter. Controls the break period inserted in certain EMC command sequences.
+</ParamField>
+
+<ParamField path="low_t6_tRTW" type="u32">
+  **Low T6 – tRTW.** tRTW value applied specifically at lower EMC operating frequencies, allowing a relaxed read-to-write gap when bandwidth demands are reduced.
+</ParamField>
+
+<ParamField path="low_t7_tWTR" type="u32">
+  **Low T7 – tWTR.** tWTR value applied at lower EMC operating frequencies, mirroring the reduced timing requirement at lower speeds.
+</ParamField>
+
+### Memory Latencies
+
+These keys override the read and write latency values used at each supported LPDDR4 speed bin.
+
+<ParamField path="read_latency_1333" type="u32">
+  **1333 Read Latency.** CAS read latency (RL) cycles used when the EMC operates at the 1333 MHz speed bin. Default from `customize.hpp`: `RL_1331 = 28`.
+</ParamField>
+
+<ParamField path="read_latency_1600" type="u32">
+  **1600 Read Latency.** CAS read latency cycles at the 1600 MHz speed bin. Default: `RL_1600 = 32`.
+</ParamField>
+
+<ParamField path="read_latency_1866" type="u32">
+  **1866 Read Latency.** CAS read latency cycles at the 1866 MHz speed bin. Default: `RL_1866 = 36`.
+</ParamField>
+
+<ParamField path="read_latency_2133" type="u32">
+  **2133 Read Latency.** CAS read latency cycles at the 2133 MHz speed bin. Default: `RL_2133 = 40`.
+</ParamField>
+
+<ParamField path="write_latency_1333" type="u32">
+  **1333 Write Latency.** CAS write latency (WL) cycles at the 1333 MHz speed bin. Default: `WL_1331 = 12`.
+</ParamField>
+
+<ParamField path="write_latency_1600" type="u32">
+  **1600 Write Latency.** CAS write latency cycles at the 1600 MHz speed bin. Default: `WL_1600 = 14`.
+</ParamField>
+
+<ParamField path="write_latency_1866" type="u32">
+  **1866 Write Latency.** CAS write latency cycles at the 1866 MHz speed bin. Default: `WL_1866 = 16`.
+</ParamField>
+
+<ParamField path="write_latency_2133" type="u32">
+  **2133 Write Latency.** CAS write latency cycles at the 2133 MHz speed bin. Default: `WL_2133 = 18`.
+</ParamField>
 
 ---
 
@@ -111,14 +205,34 @@ CPU KIP parameters are split by SoC generation. Mariko (T214/T210B01) and Erista
   **Mariko CPU Max Voltage.** Hard ceiling on CPU rail voltage (mV). Prevents the DVFS table from requesting voltages above this value even if a frequency entry calls for more.
 </ParamField>
 
+<ParamField path="mariko_cpu_low_vmin" type="u32">
+  **Mariko CPU Low Vmin.** Minimum voltage (mV) floor applied to the lower range of the Mariko CPU DVFS table. Voltages will not be reduced below this value regardless of the undervolt setting.
+</ParamField>
+
+<ParamField path="mariko_cpu_high_vmin" type="u32">
+  **Mariko CPU High Vmin.** Minimum voltage (mV) floor applied to the upper range of the Mariko CPU DVFS table, covering the highest frequencies.
+</ParamField>
+
+<ParamField path="kip_table_conf" type="u32">
+  **Table Config.** Selects which CPU DVFS voltage table variant is active. Corresponds to the `TableConfig` enum: `DEFAULT_TABLE=1`, `TBREAK_1581=2`, `TBREAK_1683=3`, `EXTREME_TABLE=4`. Higher-numbered tables are tuned for higher frequency ceilings and require adequate cooling.
+</ParamField>
+
 ### Erista CPU (T210)
 
 <ParamField path="erista_cpu_uv" type="u32">
   **Erista CPU Undervolt.** Undervolt amount (mV) subtracted uniformly from all CPU DVFS voltage entries on Erista hardware.
 </ParamField>
 
+<ParamField path="erista_cpu_vmin" type="u32">
+  **Erista CPU Vmin.** Minimum voltage (mV) floor for the Erista CPU rail. Voltages will not fall below this value even after the undervolt offset is applied.
+</ParamField>
+
 <ParamField path="erista_cpu_max_volt" type="u32">
   **Erista CPU Max Voltage.** Hard ceiling on CPU rail voltage (mV) for Erista.
+</ParamField>
+
+<ParamField path="erista_cpu_unlock" type="u32">
+  **Erista CPU Unlock.** When set to `1`, unlocks additional CPU frequency steps on Erista (T210) hardware that are disabled by default. Requires matching voltage headroom via `erista_cpu_max_volt`.
 </ParamField>
 
 <ParamField path="erista_cpu_boost_clock" type="u32">
@@ -145,6 +259,10 @@ GPU KIP parameters control the per-frequency voltage table used by the Maxwell (
   **Mariko GPU Vmax.** Maximum voltage (mV) the GPU rail is allowed to reach on Mariko.
 </ParamField>
 
+<ParamField path="mariko_gpu_vmin" type="u32">
+  **Mariko GPU Vmin.** Minimum voltage (mV) floor for the Mariko GPU rail. The DVFS governor will not reduce the GPU voltage below this value regardless of the frequency step.
+</ParamField>
+
 <ParamField path="mariko_gpu_boot_volt" type="u32">
   **Mariko GPU Boot Voltage.** Voltage (mV) applied to the GPU rail at boot, before the DVFS governor takes over.
 </ParamField>
@@ -157,6 +275,12 @@ GPU KIP parameters control the per-frequency voltage table used by the Maxwell (
 
 <ParamField path="erista_gpu_vmin" type="u32">
   **Erista GPU Minimum Voltage.** Floor voltage (mV) below which the GPU rail will not be set, even at idle.
+</ParamField>
+
+### Common GPU Voltage Offset
+
+<ParamField path="common_gpu_volt_offset" type="s32">
+  **Common GPU Voltage Offset.** Signed millivolt offset applied uniformly to every entry in the active GPU voltage table, for both Erista and Mariko. A positive value raises all GPU voltages; a negative value lowers them. This offset is applied on top of the per-frequency `g_volt_*` / `g_volt_e_*` values and the platform-specific undervolt preset.
 </ParamField>
 
 ### Per-Frequency Voltage Tables

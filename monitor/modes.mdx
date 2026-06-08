@@ -143,17 +143,15 @@ FPS Graph renders a scrolling bar/line graph of average FPS, also updated at 31 
 This mode requires **SaltyNX** to be installed.
 </Note>
 
-### Color-Coded Target Lines
+### Color-Coded Graph Line
 
-Reference lines are drawn across the graph at common frame-rate targets. A line is colored based on how close the current average FPS is to that target (within −0.05 / +0.04 FPS):
+The graph line is colored based on how close the current average FPS is to a reference target. A match is defined as average FPS within −0.05 / +0.04 of the target (e.g. 29.95–30.04 FPS for a 30 FPS target):
 
-| Line target | Color (default) | Condition |
-|---|---|---|
-| Display refresh rate or half of it | Green (`#0C0F`) | FPS within rounding error of the target |
-| Any other FPS graph target | Purple | FPS within rounding error of a non-refresh target |
-| Main line (all other values) | White (`#FFFF`) | No target match |
-| Rounded line (FPS divisible by 10) | Cyan-ish (`#F0FF`) | Divisible by 10 |
-| Perfect line (FPS divisible by 30) | Green (`#0C0F`) | Divisible by 30 |
+| Condition | Color |
+|---|---|
+| Average FPS matches the display refresh rate or half of it | Green (`perfect_line_color`, default `#0C0F`) |
+| Average FPS matches any other graph target | Purple (`rounded_line_color`, default `#F0FF`) |
+| No target match | Default graph line color (`main_line_color`, default `#FFFF`) |
 
 All graph colors are fully configurable in the `[fps-graph]` section of `config.ini`. Touch the screen to reposition the graph temporarily.
 
@@ -246,3 +244,55 @@ The `RES` category in Mini mode and the Resolution field in Full mode use the sa
 </Note>
 
 </Accordion>
+
+---
+
+## Skin Temperature
+
+Skin temperature (**T**skin) is a derived value calculated from the SoC and PCB temperature sensor readings. It is the primary metric Nintendo's thermal management uses to decide when to put the console to sleep. Reading it is not supported on firmware versions below 5.0.0.
+
+### Thermal Shutdown Thresholds
+
+| Condition | Threshold | Action |
+|---|---|---|
+| T**soc** ≥ 84 °C | Console + Handheld | Immediate sleep |
+| T**pcb** ≥ 84 °C | Console + Handheld | Immediate sleep |
+| T**skin** ≥ 63 °C | Console + Handheld | Immediate sleep |
+| T**skin** < 63 °C | Console only | Both timers cleared |
+| T**skin** < 58 °C | Handheld only | Both timers cleared |
+| 58 °C ≤ T**skin** < 61 °C | Handheld only | Starts 60 s timer; clears 10 s timer |
+| 61 °C ≤ T**skin** < 63 °C | Handheld only | Starts 10 s timer |
+| T**skin** ≥ 63 °C | Handheld only | Immediate sleep |
+
+If either timer expires before the temperature drops below the clearing threshold, the console enters sleep.
+
+### Calculation
+
+The tskin value is computed from IIR-filtered SoC and PCB temperatures using hardware calibration coefficients (explanation by CTCaer):
+
+```c
+soc_adj = (temps.iir_filter_gain_soc * (temps.soc - temps.soc_adj_prev)) + temps.soc_adj_prev;
+pcb_adj = (temps.iir_filter_gain_pcb * (temps.pcb - temps.pcb_adj_prev)) + temps.pcb_adj_prev;
+temps.soc_adj_prev = soc_adj;
+temps.pcb_adj_prev = pcb_adj;
+
+if (soc_adj >= 38000)
+{
+    if (temps.handheld)
+        soc_adj = (temps.tskin_soc_coeff_handheld[0] * soc_adj) + (1000 * temps.tskin_soc_coeff_handheld[1]);
+    else
+        soc_adj = (temps.tskin_soc_coeff_console[0] * soc_adj) + (1000 * temps.tskin_soc_coeff_console[1]);
+    soc_adj = (soc_adj / 10000) + 500;
+}
+
+if (pcb_adj >= 38000)
+{
+    if (temps.handheld)
+        pcb_adj = (temps.tskin_pcb_coeff_handheld[0] * pcb_adj) + (1000 * temps.tskin_pcb_coeff_handheld[1]);
+    else
+        pcb_adj = (temps.tskin_pcb_coeff_console[0] * soc_adj) + (1000 * temps.tskin_pcb_coeff_console[1]);
+    pcb_adj = (pcb_adj / 10000) + 500;
+}
+
+skin_adj = MAX(soc_adj, pcb_adj); // tskin
+```

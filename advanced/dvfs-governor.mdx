@@ -1,5 +1,5 @@
 ---
-title: "DVFS and CPU Governor Configuration in Horizon OC"
+title: "DVFS and CPU Governor Configuration for Horizon OC"
 sidebarTitle: "DVFS & Governor"
 description: "Configure Dynamic Voltage and Frequency Scaling (DVFS) and the CPU frequency governor in Horizon OC to balance performance and power efficiency."
 ---
@@ -116,20 +116,12 @@ The auto high-RAM CPU OC feature automatically boosts the CPU clock when the EMC
   Enables or disables automatic CPU overclock when RAM frequency exceeds `auto_ram_cpu_ram_oc_threshold`. Enabled by default.
 </ParamField>
 
-<ParamField path="auto_ram_cpu_cpu_oc_freq" type="uint64 (Hz)" default="1683000 (1683 MHz)">
-  The CPU frequency target applied automatically when the RAM OC threshold is crossed. The default of `1,683,000` Hz corresponds to 1683 MHz — a common high-performance Mariko CPU operating point.
-
-  <Note>
-  Note that this value is stored in kHz units in the config file: the default `1683000` means 1683 MHz. Confirm the unit convention in your config file version before editing.
-  </Note>
+<ParamField path="auto_ram_cpu_cpu_oc_freq" type="uint64 (kHz)" default="1683000 (1683 MHz)">
+  The CPU frequency target applied automatically when the RAM OC threshold is crossed. The value is stored in kHz: the default of `1683000` kHz corresponds to 1683 MHz — a common high-performance Mariko CPU operating point. The sysmodule multiplies this value by 1000 internally to obtain the Hz value passed to the clock driver.
 </ParamField>
 
-<ParamField path="auto_ram_cpu_ram_oc_threshold" type="uint64 (Hz)" default="2666000 (2666 MHz)">
-  The RAM frequency threshold (in Hz) above which the auto CPU OC is activated. The default of `2,666,000` Hz targets the 2666 MT/s operating point. When the EMC clock is set at or above this value, `auto_ram_cpu_cpu_oc_freq` is enforced as the minimum CPU clock.
-
-  <Note>
-  Like the CPU OC frequency, this threshold is expressed in the same unit convention. The default `2666000` corresponds to 2666 MHz (i.e., 2666 MT/s RAM).
-  </Note>
+<ParamField path="auto_ram_cpu_ram_oc_threshold" type="uint64 (kHz)" default="2666000 (2666 MHz)">
+  The RAM frequency threshold (in kHz) above which the auto CPU OC is activated. The default of `2666000` kHz targets the 2666 MT/s operating point. When the EMC clock is set at or above this value, `auto_ram_cpu_cpu_oc_freq` is enforced as the minimum CPU clock. Like the CPU OC frequency key, the sysmodule multiplies this value by 1000 to obtain Hz.
 </ParamField>
 
 <Tip>

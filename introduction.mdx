@@ -1,5 +1,5 @@
 ---
-title: "Horizon OC: Nintendo Switch Overclocking Tool"
+title: "Horizon OC: Nintendo Switch CPU, GPU, and RAM Overclocking"
 sidebarTitle: "Introduction"
 description: "Horizon OC unlocks CPU, GPU, and RAM overclocking on Nintendo Switch running Atmosphere CFW, with a KIP patch, sysmodule, and real-time overlay."
 ---
@@ -17,16 +17,16 @@ Horizon OC is an open-source overclocking tool for Nintendo Switch consoles runn
 Horizon OC is composed of four tightly integrated components that work together across firmware, kernel, and user space.
 
 <CardGroup cols={2}>
-  <Card title="hoc.kip — Kernel Initial Process Patch" icon="microchip">
+  <Card title="hoc.kip — Kernel Initial Process Patch" icon="microchip" href="/installation">
     A KIP loaded by Hekate or fusee at boot time. It patches the Atmosphere loader to unlock extended CPU, GPU, and RAM clock tables — including DVFS voltage curves — before the operating system starts. This is the foundation that makes higher clocks legal from the SoC's perspective.
   </Card>
-  <Card title="hoc-clk — Sysmodule" icon="server">
+  <Card title="hoc-clk — Sysmodule" icon="server" href="/advanced/building">
     A background system module (title ID `00FF0000636C6BFF`) that runs continuously after boot. It exposes an IPC service (`hoc:clk`) that the overlay and other clients use to read and write clock profiles, apply temporary overrides, and manage per-title settings. It also handles thermal throttling and governor logic.
   </Card>
-  <Card title="Ultrahand Overlay" icon="sliders">
+  <Card title="Ultrahand Overlay" icon="sliders" href="/configuration/overlay">
     The primary user interface, built on the Ultrahand overlay framework. It lets you switch profiles, set CPU/GPU/MEM frequencies for each power state, save KIP settings, and view real-time telemetry — all accessible with a button combo while any game is running.
   </Card>
-  <Card title="Monitor Overlay" icon="chart-line">
+  <Card title="Monitor Overlay" icon="chart-line" href="/monitor/overview">
     A real-time hardware monitor overlay that displays live clock speeds, temperatures (SoC, PCB, CPU, GPU, memory, battery), power draw, and RAM bandwidth utilisation. Useful for validating that overclocks are stable and not thermally throttling.
   </Card>
 </CardGroup>
@@ -63,22 +63,22 @@ These are the maximum frequencies that Horizon OC targets for each platform with
 ## Key Features
 
 <CardGroup cols={2}>
-  <Card title="Per-Profile Clock Control" icon="table-list">
+  <Card title="Per-Profile Clock Control" icon="table-list" href="/configuration/profiles">
     Set independent CPU, GPU, and MEM frequencies for each power state: Handheld, USB Charging, PD Charging, and Docked.
   </Card>
-  <Card title="Per-Title App Profiles" icon="gamepad">
+  <Card title="Per-Title App Profiles" icon="gamepad" href="/configuration/profiles">
     Override global profiles for specific game title IDs, letting you boost demanding titles while leaving lighter ones at stock.
   </Card>
-  <Card title="Over- and Undervolting" icon="bolt">
+  <Card title="Over- and Undervolting" icon="bolt" href="/clocks/voltage-tuning">
     Fine-tune DVFS voltage tables for CPU and GPU rails, including SLT, HiOPT, HiOPT-15 mV, and High UV presets for GPU on both Erista and Mariko.
   </Card>
-  <Card title="Thermal Throttling Control" icon="temperature-half">
+  <Card title="Thermal Throttling Control" icon="temperature-half" href="/advanced/safety">
     Configure a thermal throttle threshold so the sysmodule automatically pulls clocks back before the console reaches unsafe temperatures.
   </Card>
-  <Card title="KIP Settings Persistence" icon="floppy-disk">
+  <Card title="KIP Settings Persistence" icon="floppy-disk" href="/configuration/kip-settings">
     Save your clock and voltage configuration directly into the KIP, making it survive reboots without re-applying settings through the overlay.
   </Card>
-  <Card title="Real-Time Telemetry" icon="gauge">
+  <Card title="Real-Time Telemetry" icon="gauge" href="/monitor/overview">
     Monitor live SoC, PCB, CPU, GPU, memory, and battery temperatures alongside instantaneous and average power draw and RAM bandwidth.
   </Card>
 </CardGroup>
