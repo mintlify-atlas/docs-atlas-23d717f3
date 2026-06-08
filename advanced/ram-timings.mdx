@@ -1,0 +1,205 @@
+---
+title: "Custom LPDDR4X Memory Timings for Nintendo Switch"
+sidebarTitle: "RAM Timings"
+description: "Configure custom LPDDR4X memory timings in Horizon OC — tRCD, tRP, tRAS, tRRD, tRFC, tRTW, tWTR, tREFI — for stability and performance at higher RAM clocks."
+---
+
+Memory timings define how long the memory controller waits between successive operations on the LPDDR4X chips inside your Switch. At stock frequencies the factory defaults are conservative enough to guarantee compatibility across all production silicon. When you push the EMC (External Memory Controller) clock to 1600, 1866, or 2133 MT/s, those defaults can become the limiting factor for stability — both too loose (wasted cycles, bandwidth left on the table) and too tight (bit errors, crashes, NAND corruption) are failure modes. Horizon OC exposes the full set of timing registers through its KIP configuration layer so you can dial in values that match your specific hardware.
+
+<Warning>
+Incorrect memory timings can cause system instability, data corruption, or NAND damage. Always back up your NAND and emuMMC before changing any timing values. Test thoroughly at each step before applying a tighter set.
+</Warning>
+
+<Tip>
+Start with one of the bundled JEDEC-compliant presets (`StepMode_Jedec`) before attempting to tighten timings. This gives you a known-good baseline and confirms your hardware is stable at a given frequency before any further tuning.
+</Tip>
+
+## Accessing RAM Settings
+
+RAM timing parameters are exposed in the Horizon OC overlay under **Settings → RAM Settings**. Each value maps directly to a key in the `hoc-clk` INI configuration file and is written to the KIP at boot time.
+
+## Core Timing Parameters
+
+The following parameters correspond to fields in the `CustomizeTable` struct (`customize.hpp`) and their INI key names as returned by `hocclkFormatConfigValue` in `config.h`.
+
+<ParamField path="t1_trcd" type="uint32" >
+  **t1 — tRCD (Row to Column Delay).** The minimum number of clock cycles between activating a row and issuing a read or write command to a column in that row. Lowering this tightens the timing and reduces latency; too low a value causes read/write errors on row activation.
+</ParamField>
+
+<ParamField path="t2_trp" type="uint32" >
+  **t2 — tRP (Row Precharge).** The number of cycles required to precharge (close) an open row before a new row can be activated. Reducing tRP increases bandwidth at the cost of stability margin on precharge operations.
+</ParamField>
+
+<ParamField path="t3_tras" type="uint32" >
+  **t3 — tRAS (Row Active Strobe).** The minimum number of cycles a row must remain active before it can be precharged. Must satisfy `tRAS ≥ tRCD + tCAS` for correct operation. A value that is too small corrupts data in the open row.
+</ParamField>
+
+<ParamField path="t4_trrd" type="uint32" >
+  **t4 — tRRD (Row to Row Delay).** The minimum delay between activating rows in different banks. Affects burst-heavy workloads; tightening it improves bandwidth when many banks are accessed in rapid succession.
+</ParamField>
+
+<ParamField path="t5_trfc" type="uint32" >
+  **t5 — tRFC (Refresh Cycle Time).** The minimum time required to complete a refresh operation before the next command can be issued to the same bank. This value scales with DRAM density and is typically the largest timing parameter. Setting it too short causes retention failures.
+</ParamField>
+
+<ParamField path="t6_trtw" type="uint32" >
+  **t6 — tRTW (Read to Write Turnaround).** The number of cycles the bus must idle after a read burst before a write command can be issued, accommodating bus turn-around and DQ line settling. See also `low_t6_tRTW` for the low-clock variant and `t6_tRTW_fine_tune` for sub-cycle adjustment.
+</ParamField>
+
+<ParamField path="t7_twtr" type="uint32" >
+  **t7 — tWTR (Write to Read Turnaround).** The number of cycles the bus must idle after a write burst before a read command is issued. Analogous to tRTW in the opposite direction. See also `low_t7_tWTR` and `t7_tWTR_fine_tune`.
+</ParamField>
+
+<ParamField path="t8_trefi" type="uint32" >
+  **t8 — tREFI (Refresh Interval).** The average interval between refresh commands. A longer interval means fewer refreshes per second and slightly more bandwidth available to the CPU/GPU, but reduces the refresh margin — particularly relevant at elevated temperatures where DRAM retention times shorten.
+</ParamField>
+
+### Auxiliary Timing Parameters
+
+<ParamField path="timingEmcTbreak" type="uint32" >
+  **EMC Tbreak.** An internal EMC pipeline break timing used by the Tegra memory controller. This value is selected by the `kip_table_conf` (`tableConf`) setting — see Table Configurations below.
+</ParamField>
+
+<ParamField path="low_t6_tRTW" type="uint32" >
+  **Low T6 — tRTW.** The tRTW value applied when the EMC is operating at lower clock speeds (below the high-frequency threshold). Allows a less conservative setting at stock or intermediate clocks while the main `t6_trtw` value governs high-frequency operation.
+</ParamField>
+
+<ParamField path="low_t7_tWTR" type="uint32" >
+  **Low T7 — tWTR.** The tWTR value applied at low EMC clock speeds. Mirrors the purpose of `low_t6_tRTW` for the write-to-read direction.
+</ParamField>
+
+<ParamField path="t2_tRP_cap" type="uint32" >
+  **t2 — tRP 1333 WL Cap.** A cap applied to the tRP value specifically when operating at the 1333 MT/s write latency (WL=12) working point. Prevents the precharge timing from being set excessively tight at this intermediate frequency.
+</ParamField>
+
+### Fine-Tune Values
+
+<ParamField path="t6_tRTW_fine_tune" type="uint32" >
+  **t6 — tRTW Fine Tune.** A sub-cycle fine-tuning offset applied on top of the integer `t6_trtw` value. Allows fractional-cycle adjustment of read-to-write turnaround without changing the coarse timing register.
+</ParamField>
+
+<ParamField path="t7_tWTR_fine_tune" type="uint32" >
+  **t7 — tWTR Fine Tune.** A sub-cycle fine-tuning offset applied on top of `t7_twtr`. Useful for squeezing out the last margin during write-to-read transitions.
+</ParamField>
+
+## Read and Write Latency
+
+Latency settings are stored as four-element arrays (`readLatency[4]` / `writeLatency[4]` in `CustomizeTable`) and are selected by the active EMC frequency. The per-frequency INI keys and their JEDEC-standard default values from `customize.hpp` are:
+
+### Read Latency
+
+| Config Key | Frequency | Enum Constant | Default Value |
+|---|---|---|---|
+| `read_latency_1333` | 1333 MT/s | `RL_1331` | 28 |
+| `read_latency_1600` | 1600 MT/s | `RL_1600` | 32 |
+| `read_latency_1866` | 1866 MT/s | `RL_1866` | 36 |
+| `read_latency_2133` | 2133 MT/s | `RL_2133` | 40 |
+
+<ParamField path="read_latency_1333" type="uint32" default="28">
+  Read latency (RL) used when the EMC runs at 1333 MT/s. JEDEC default is 28 cycles (`RL_1331 = 28`).
+</ParamField>
+
+<ParamField path="read_latency_1600" type="uint32" default="32">
+  Read latency used at 1600 MT/s. JEDEC default is 32 cycles (`RL_1600 = 32`).
+</ParamField>
+
+<ParamField path="read_latency_1866" type="uint32" default="36">
+  Read latency used at 1866 MT/s. JEDEC default is 36 cycles (`RL_1866 = 36`).
+</ParamField>
+
+<ParamField path="read_latency_2133" type="uint32" default="40">
+  Read latency used at 2133 MT/s. JEDEC default is 40 cycles (`RL_2133 = 40`).
+</ParamField>
+
+### Write Latency
+
+| Config Key | Frequency | Enum Constant | Default Value |
+|---|---|---|---|
+| `write_latency_1333` | 1333 MT/s | `WL_1331` | 12 |
+| `write_latency_1600` | 1600 MT/s | `WL_1600` | 14 |
+| `write_latency_1866` | 1866 MT/s | `WL_1866` | 16 |
+| `write_latency_2133` | 2133 MT/s | `WL_2133` | 18 |
+
+<ParamField path="write_latency_1333" type="uint32" default="12">
+  Write latency (WL) at 1333 MT/s. JEDEC default is 12 cycles (`WL_1331 = 12`).
+</ParamField>
+
+<ParamField path="write_latency_1600" type="uint32" default="14">
+  Write latency at 1600 MT/s. JEDEC default is 14 cycles (`WL_1600 = 14`).
+</ParamField>
+
+<ParamField path="write_latency_1866" type="uint32" default="16">
+  Write latency at 1866 MT/s. JEDEC default is 16 cycles (`WL_1866 = 16`).
+</ParamField>
+
+<ParamField path="write_latency_2133" type="uint32" default="18">
+  Write latency at 2133 MT/s. JEDEC default is 18 cycles (`WL_2133 = 18`).
+</ParamField>
+
+## Step Mode
+
+The `step_mode` key (`KipConfigValue_stepMode`) controls how the EMC clock frequency ramps between steps during a frequency transition. The value maps to the `StepMode` enum defined in `customize.hpp`:
+
+```cpp
+enum StepMode: u32 {
+    StepMode_66MHz  = 0,  // 66 MHz steps
+    StepMode_100MHz = 1,  // 100 MHz steps
+    StepMode_Jedec  = 2,  // JEDEC-specified step sequence
+    StepMode_133MHz = 3,  // 133 MHz steps
+};
+```
+
+<ParamField path="step_mode" type="uint32 (StepMode enum)" default="2 (StepMode_Jedec)">
+  Determines the frequency step size used during EMC clock transitions.
+
+  - `0` — `StepMode_66MHz`: transitions in 66 MHz increments (finest granularity, slowest ramp)
+  - `1` — `StepMode_100MHz`: transitions in 100 MHz increments
+  - `2` — `StepMode_Jedec`: follows the JEDEC LPDDR4X frequency step sequence (recommended default)
+  - `3` — `StepMode_133MHz`: transitions in 133 MHz increments (coarsest granularity, fastest ramp)
+
+  Larger steps can cause voltage overshoot or undershoot glitches on marginal silicon; smaller steps are safer but introduce more transition overhead.
+</ParamField>
+
+## Table Configurations
+
+The `kip_table_conf` key (`KipConfigValue_tableConf`) selects which CPU DVFS voltage table is loaded alongside the memory timing set. This affects the CPU-side Tbreak value used for memory coherency and must be matched to your timing preset:
+
+```cpp
+enum TableConfig: u32 {
+    DEFAULT_TABLE = 1,
+    TBREAK_1581   = 2,
+    TBREAK_1683   = 3,
+    EXTREME_TABLE = 4,
+};
+```
+
+| Value | Name | Description |
+|---|---|---|
+| `1` | `DEFAULT_TABLE` | Stock Mariko CPU DVFS tables; safe starting point for most users |
+| `2` | `TBREAK_1581` | CPU tables with Tbreak set for 1581 MHz operation; use with 1581-optimized timing presets |
+| `3` | `TBREAK_1683` | CPU tables with Tbreak set for 1683 MHz operation; use with 1683-optimized timing presets |
+| `4` | `EXTREME_TABLE` | Extreme CPU DVFS table for maximum overclocking; requires manual voltage validation |
+
+<Note>
+The `tableConf` selection must be consistent with the `timingEmcTbreak` value in your timing preset. Mismatching these can produce subtle stability issues that only appear under load.
+</Note>
+
+## Timing Presets
+
+Horizon OC ships pre-validated timing files in the `timings/` directory. The current presets cover Mariko/AA hardware at four target frequencies:
+
+```
+timings/
+└── Mariko/
+    └── AA/
+        ├── 1331/   # ~1333 MT/s presets
+        ├── 1600/   # 1600 MT/s presets
+        ├── 1866/   # 1866 MT/s presets
+        └── 2133/   # 2133 MT/s presets
+```
+
+Each subdirectory contains INI files with timing values tuned for that frequency. Load a preset by selecting it in the overlay or copying the values into your Horizon OC configuration file.
+
+<Tip>
+When moving to a higher frequency tier, always apply the matching preset first and confirm stability before customising individual timing values. The presets are tested on representative Mariko AA silicon and represent a reasonable conservative starting point.
+</Tip>

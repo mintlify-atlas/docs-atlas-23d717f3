@@ -1,0 +1,248 @@
+---
+title: "Monitor Overlay Display Modes Explained"
+sidebarTitle: "Modes"
+description: "Detailed reference for all Horizon OC Monitor overlay modes: Full, Mini, Micro, FPS Counter, FPS Graph, Battery, Miscellaneous, and Game Resolutions."
+---
+
+The Horizon OC Monitor overlay offers eight display modes, each targeting a different balance of detail and on-screen footprint. Some modes require optional dependencies — [SaltyNX](https://github.com/masagrator/SaltyNX/releases) for FPS and resolution data, and [sys-clk 2.0.0_rc4+](https://github.com/retronx-team/sys-clk/releases) for real (measured) clock rates and RAM load. The sections below document every field, format string, and caveat for each mode.
+
+---
+
+<Accordion title="Full — Complete multi-section readout">
+
+Full mode is the most information-dense display. It renders a structured overlay with four named sections, each with labeled fields and high-precision values.
+
+### CPU Usage
+
+| Field | Format | Description |
+|---|---|---|
+| Real Frequency | `%.1f` MHz | Measured clock rate of all CPU cores. Shown only when sys-clk 2.0.0_rc4+ is installed. |
+| Target Frequency | `%.1f` MHz | Requested clock rate for all CPU cores. |
+| Core #0 – #3 | `%.2f` % | Per-core load calculated from idle tick counts. |
+
+### GPU Usage
+
+| Field | Format | Description |
+|---|---|---|
+| Real Frequency | `%.1f` MHz | Measured GPU clock rate. Shown only when sys-clk 2.0.0_rc4+ is installed. |
+| Target Frequency | `%.1f` MHz | Requested GPU clock rate. |
+| Load | `%.1f` % | GPU load provided by the PMU. |
+
+### RAM Usage
+
+| Field | Format | Description |
+|---|---|---|
+| Real Frequency | `%.1f` MHz | Measured EMC clock rate. Shown only when sys-clk 2.0.0_rc4+ is installed. |
+| Target Frequency | `%.1f` MHz | Requested EMC clock rate. |
+| Load | `%.1f` (CPU `%.1f` \| GPU `%.1f`) % | Total RAM load, with CPU and GPU sub-loads in parentheses. |
+| Memory | `%s`: `%.2f`/`%.2f` = `%s` | Used / available memory in MB. Not available on firmware older than 5.0.0. |
+
+### Board
+
+| Field | Format | Description |
+|---|---|---|
+| Battery Power Flow | `%+.2f` W `[h:mm]` | Watts drawn from (negative) or delivered to (positive) the battery, plus time remaining before shutdown. |
+| Temperatures | `%.1f` / `%.1f` / `%.1f` °C | SoC / PCB / Skin temperatures in Celsius. Skin temperature requires FW 5.0.0+. |
+| Fan Rotation Level | `%.1f` % | Fan speed as a percentage of maximum. |
+
+### Optional Fields (SaltyNX + game running)
+
+| Category | Format | Description |
+|---|---|---|
+| PFPS | `%u` | Pushed Frames Per Second — frames actually displayed in the last second. |
+| FPS | `%.2f` | Frames Per Second — averaged from frame time measurements. |
+| Resolutions | `%dx%d \|\| %dx%d` | Two best candidates for the game's internal render resolution. See the [Game Resolutions](#game-resolutions-nvn-egl-and-vulkan-viewport-capture) section for caveats. |
+| Read speed | `%.2f` MiB/s | Game asset read speed over the last second. |
+
+Individual fields can be toggled via `show_fps`, `show_res`, `show_read_speed`, and the `show_real_freqs` / `show_target_freqs` / `show_deltas` keys in `config.ini` under `[full]`.
+
+</Accordion>
+
+<Accordion title="Mini — Compact single-line overlay">
+
+Mini mode condenses key stats into one or a few horizontal lines with abbreviated category labels on the left and values on the right. You can drag it to any screen position with the touch screen; the position resets when you exit the mode.
+
+Real frequencies and RAM load display require sys-clk 2.0.0_rc4+. Which categories appear is configurable via the `show` key in `[mini]`.
+
+### Always-Available Categories
+
+| Category | Format | Description |
+|---|---|---|
+| CPU | `[%.0f,%.0f,%.0f,%.0f]@%.1f` | Core #0–#3 load percentages @ target or real CPU frequency in MHz. |
+| GPU | `%.1f@%.1f` | GPU load % @ target or real GPU frequency in MHz. |
+| RAM (MB mode) | `%.0f/%.0f@%.1f` | Total RAM used / available in MB @ EMC target or real frequency in MHz. |
+| RAM (load mode) | `%.1f(%.1f \| %.1f)@%.1f` | RAM load % (CPU \| GPU) @ EMC target frequency in MHz. Requires sys-clk 2.0.0_rc4+; toggle with `replace_MB_with_RAM_load`. |
+| TEMP | `%2.1f/%2.1f/%2.1f` °C | SoC / PCB / Skin temperatures. |
+| FAN | `%2.1f` % | Fan rotation level. |
+| DRAW | `%+.2f[h:mm]` W | Battery power flow in watts with time-to-shutdown. |
+| RES | `%dx%d \|\| %dx%d` | Two best internal resolution candidates. Requires SaltyNX. |
+| READ | `%.2f` MiB/s | Game asset read speed per second. Requires SaltyNX. |
+
+### Optional Category (SaltyNX + game running)
+
+| Category | Format | Description |
+|---|---|---|
+| FPS | `%.2f` | Frames Per Second. |
+
+All categories are shown by default. Remove individual ones by editing the `show` key: e.g. `show=CPU+GPU+RAM+TEMP+FPS`.
+
+</Accordion>
+
+<Accordion title="Micro — Ultra-compact one-line overlay">
+
+Micro mode fits everything onto a single line. It uses the same touch-to-reposition behavior as Mini. Categories are configured via the `show` key in `[micro]`.
+
+### Throttle Separator Symbols
+
+When sys-clk 2.0.0_rc4+ is installed, the `@` separator between load and frequency is replaced by a dynamic throttle indicator:
+
+| Symbol | Meaning |
+|---|---|
+| `△` | Real clock is **higher** than target by ≥ 20 MHz |
+| `▽` | Real clock is **lower** than target by ≥ 20 MHz |
+| `≠` | Real clock is **lower** than target by ≥ 50 MHz — sustained display of this symbol is a sign of thermal or power throttling |
+
+### Categories
+
+| Category | Format | Description |
+|---|---|---|
+| CPU | `[%.0f,%.0f,%.0f,%.0f]`*`%s`*`%.1f` | Core #0–#3 loads, throttle indicator, then target or real CPU frequency in MHz. |
+| GPU | `%.1f`*`%s`*`%.1f` | GPU load %, throttle indicator, target or real GPU frequency in MHz. |
+| RAM (GB mode) | `%.1f/%.1f`*`%s`*`%.1f` | RAM used / available in GB, throttle indicator, EMC target frequency. |
+| RAM (load mode) | `%.1f`*`%s`*`%.1f` | RAM load %, throttle indicator, EMC target frequency. Toggle with `replace_GB_with_RAM_load`. |
+| BRD | `%2.1f/%2.1f/%2.1f@%+.1f[h:mm]` | SoC / PCB / Skin temperatures °C @ battery power flow W with time remaining. |
+| FAN | `%2.1f` % | Fan rotation level. |
+
+### Optional Category (SaltyNX + game running)
+
+| Category | Format | Description |
+|---|---|---|
+| FPS | `%.1f` | Frames Per Second. |
+
+Real frequencies and RAM load mode both require sys-clk 2.0.0_rc4+.
+
+</Accordion>
+
+<Accordion title="FPS Counter — Minimal framerate display">
+
+FPS Counter renders only the current frame rate as a large number, updated at 31 Hz plus vsync. If no game is running, the display permanently shows `n/d` (no data). Touch the screen to reposition the counter temporarily.
+
+<Note>
+This mode requires **SaltyNX** to be installed. Without it the mode will not display any FPS data.
+</Note>
+
+Font size and position are configurable via the `[fps-counter]` section of `config.ini`. Font sizes range from 8 to 150 pt, making this mode usable as a large corner indicator during gameplay recording.
+
+</Accordion>
+
+<Accordion title="FPS Graph — Scrolling average frame-rate graph">
+
+FPS Graph renders a scrolling bar/line graph of average FPS, also updated at 31 Hz plus vsync. The current average FPS value is printed in a dimmed color behind the graph. If no game is running the graph remains empty; if the game stops producing new frames the graph freezes.
+
+<Note>
+This mode requires **SaltyNX** to be installed.
+</Note>
+
+### Color-Coded Target Lines
+
+Reference lines are drawn across the graph at common frame-rate targets. A line is colored based on how close the current average FPS is to that target (within −0.05 / +0.04 FPS):
+
+| Line target | Color (default) | Condition |
+|---|---|---|
+| Display refresh rate or half of it | Green (`#0C0F`) | FPS within rounding error of the target |
+| Any other FPS graph target | Purple | FPS within rounding error of a non-refresh target |
+| Main line (all other values) | White (`#FFFF`) | No target match |
+| Rounded line (FPS divisible by 10) | Cyan-ish (`#F0FF`) | Divisible by 10 |
+| Perfect line (FPS divisible by 30) | Green (`#0C0F`) | Divisible by 30 |
+
+All graph colors are fully configurable in the `[fps-graph]` section of `config.ini`. Touch the screen to reposition the graph temporarily.
+
+</Accordion>
+
+<Accordion title="Battery — Detailed power and health metrics">
+
+Battery mode displays an in-depth snapshot of battery state. It does not require SaltyNX or sys-clk.
+
+### Always-Shown Fields
+
+| Field | Format | Description |
+|---|---|---|
+| Actual Capacity | `%d` mAh | Designed capacity multiplied by battery age — the effective usable capacity. |
+| Designed Capacity | `%d` mAh | Manufacturer's rated capacity. |
+| Temperature | `%.1f` °C | Battery cell temperature. |
+| Raw Charge | `%.1f` % | Raw charged capacity as reported by the fuel gauge. |
+| Age | `%.1f` % | How much of the designed capacity was fully charged the last time the battery reached 100%. |
+| Voltage | `%.0f` mV | Average battery voltage over 5 s (or 45 s with `battery_avg_iir_filter=true`). |
+| Current Flow | `%+.0f` mA | Average current flow over 5 s (or 11.25 s with `battery_avg_iir_filter=true`). Negative = discharging. |
+| Power Flow | `%+.3f` W | Calculated from voltage × current. Negative = discharging. |
+| Remaining Time | `h:mm` | Estimated time until shutdown, calculated from the last 3 minutes of power readings. Shown as `[-:--]` when power flow is positive (charging). |
+
+### Charger Fields (shown only when a charger is connected)
+
+| Field | Format | Description |
+|---|---|---|
+| Charger Type | `%u` | Numeric charger type identifier (see `BatteryChargeInfoFieldsChargerType`). |
+| Charger Max Voltage | `%u` mV | Combined charger and external device voltage limit. |
+| Charger Max Current | `%u` mA | Combined charger and external device current limit. |
+
+<Note>
+Battery Remaining Time is calculated from a rolling 3-minute window. For the first minute after opening any mode it updates every 0.5 s; after one minute it updates every minute. The counter resets when you exit the mode, when a charger is connected or disconnected, and when power flow turns positive (charging).
+</Note>
+
+</Accordion>
+
+<Accordion title="Miscellaneous — DSP, media engines, and network">
+
+Miscellaneous mode surfaces hardware components not covered by the other modes.
+
+| Category | Format | Description |
+|---|---|---|
+| DSP Usage | `%u` % | Digital Signal Processor load. **Not available on firmware 17.0.0 or later.** |
+| NVDEC | `%.2f` MHz | NVDEC (video decode engine) target frequency. Shows `0` when the chip is inactive. |
+| NVENC | `%.2f` MHz | NVENC (video encode engine) target frequency. Shows `0` when inactive. |
+| NVJPG | `%.2f` MHz | NVJPG (JPEG decode engine) target frequency. Shows `0` when inactive. |
+| Network Type | `%s` | Connection status: offline, Wi-Fi, or Ethernet. |
+
+When **Network Type** shows `Wi-Fi`, press **Y** to reveal the password for the currently connected network. Passwords up to 64 characters may wrap across up to three lines.
+
+</Accordion>
+
+<Accordion title="Game Resolutions — NVN, EGL, and Vulkan viewport capture">
+
+Game Resolutions mode captures render resolution data in real time by hooking the graphics API calls a game makes each frame. It requires **SaltyNX 0.9.0 or later** and supports touch-to-reposition.
+
+### What is Captured
+
+| Section | Source functions |
+|---|---|
+| **Depth** | `nvnCommandBufferSetRenderTargets` — depth texture dimensions. |
+| **Viewport** | `nvnCommandBufferSetViewport/s`, `nvnCommandBufferSetScissor/s` (NVN); `glViewport` and variants (EGL); `vkCmdSetViewport`, `vkCmdSetViewportWithCount` (Vulkan). |
+
+The overlay shows the **first 8 resolutions** passed to those functions in the last frame rendering loop, sorted in descending order by call count.
+
+### Filtering Rules
+
+The capture pipeline applies these constraints to reduce noise:
+
+- Aspect ratio must be **between 0.6 and 1.8** (to accommodate portrait-orientation games like 480×720).
+- Resolution height must be **between 160 px and 1440 px**.
+
+### Caveats and Known Limitations
+
+- The mode targets 3D games using NVN, EGL, or Vulkan. Games using 2D-only engines will typically show nothing.
+- The display is **not 100% foolproof** — some games' resolution may not be caught, or the captured values may not correspond to the primary 3D render target.
+- Resolutions shown may not map 1:1 to the screen. For example, a game showing `1280×736` is using that as its max dynamic resolution canvas; those extra 16 rows are cropped before display.
+- Default refresh rate is **10 FPS**. Configurable via `refresh_rate` in `[game_resolutions]`.
+
+**Known games with imperfect capture:**
+
+| Game | Behavior |
+|---|---|
+| Kirby and the Forgotten Land | Dynamic resolution receives far fewer calls than other resolutions. Appears correctly only at its maximum dynamic resolution; always shows first in the Depth category. |
+| Darksiders 2 | Dynamic resolution randomly competes with native resolution calls. Shows at 2nd or 3rd place in the Viewport category. |
+
+<Note>
+The `RES` category in Mini mode and the Resolution field in Full mode use the same detection heuristic. If those fields behave unexpectedly for a specific game, opening Game Resolutions mode directly usually gives a clearer picture of what the GPU is actually receiving.
+</Note>
+
+</Accordion>

@@ -1,0 +1,88 @@
+---
+title: "Horizon OC: Nintendo Switch Overclocking Tool"
+sidebarTitle: "Introduction"
+description: "Horizon OC unlocks CPU, GPU, and RAM overclocking on Nintendo Switch running Atmosphere CFW, with a KIP patch, sysmodule, and real-time overlay."
+---
+
+Horizon OC is an open-source overclocking tool for Nintendo Switch consoles running Atmosphere custom firmware. Where Nintendo's stock clock governor caps the CPU at 1020 MHz and the GPU at 384 MHz in handheld mode, Horizon OC removes those limits and gives you per-profile, per-application control over CPU, GPU, and RAM frequencies — in real time, without rebooting.
+
+<Warning>
+  **This tool can be dangerous if misused. Proceed with caution.**
+
+  Due to the design of Horizon OS, **overclocking RAM can cause NAND or SD card corruption.** Ensure you have a complete **NAND, PROINFO, emuMMC, and SD card backup** before proceeding. You accept full responsibility for any damage to your console or data.
+</Warning>
+
+## Architecture
+
+Horizon OC is composed of four tightly integrated components that work together across firmware, kernel, and user space.
+
+<CardGroup cols={2}>
+  <Card title="hoc.kip — Kernel Initial Process Patch" icon="microchip">
+    A KIP loaded by Hekate or fusee at boot time. It patches the Atmosphere loader to unlock extended CPU, GPU, and RAM clock tables — including DVFS voltage curves — before the operating system starts. This is the foundation that makes higher clocks legal from the SoC's perspective.
+  </Card>
+  <Card title="hoc-clk — Sysmodule" icon="server">
+    A background system module (title ID `00FF0000636C6BFF`) that runs continuously after boot. It exposes an IPC service (`hoc:clk`) that the overlay and other clients use to read and write clock profiles, apply temporary overrides, and manage per-title settings. It also handles thermal throttling and governor logic.
+  </Card>
+  <Card title="Ultrahand Overlay" icon="sliders">
+    The primary user interface, built on the Ultrahand overlay framework. It lets you switch profiles, set CPU/GPU/MEM frequencies for each power state, save KIP settings, and view real-time telemetry — all accessible with a button combo while any game is running.
+  </Card>
+  <Card title="Monitor Overlay" icon="chart-line">
+    A real-time hardware monitor overlay that displays live clock speeds, temperatures (SoC, PCB, CPU, GPU, memory, battery), power draw, and RAM bandwidth utilisation. Useful for validating that overclocks are stable and not thermally throttling.
+  </Card>
+</CardGroup>
+
+## Supported Hardware
+
+Horizon OC targets both major Switch silicon generations. The sysmodule auto-detects the SoC at runtime via `HocClkSocType`.
+
+| Console | Code Name | SoC | Generation |
+|---|---|---|---|
+| Switch V1 | Icosa | NVIDIA Tegra X1 (T210) | Erista |
+| Switch V2 | Iowa | NVIDIA Tegra X1+ (T214 / T210B01) | Mariko |
+| Switch Lite | Hoag | NVIDIA Tegra X1+ (T214 / T210B01) | Mariko |
+| Switch OLED | Aula | NVIDIA Tegra X1+ (T214 / T210B01) | Mariko |
+
+<Note>
+  Switch 2 (code name Drake, SoC T239) is not currently supported. The `HocClkSocType` enum includes a commented-out `Drake` entry — watch the project for future updates.
+</Note>
+
+## Default Safe Clock Maximums
+
+These are the maximum frequencies that Horizon OC targets for each platform without requiring undervolting or experimental settings. Higher clocks are available but carry additional risk.
+
+| Component | Mariko (V2 / Lite / OLED) | Erista (V1) |
+|---|---|---|
+| CPU | 1963 MHz | 1785 MHz |
+| GPU | 1075 MHz | 921 MHz |
+| RAM | 1866 MHz (3733 modules) / 2133 MHz (4266 modules) | 1600 MHz |
+
+<Note>
+  On Erista, CPU frequency in handheld mode is capped to 1581 MHz and GPU is capped to 460 MHz. GPU clocks above 768 MHz on Erista require the official Nintendo charger to be connected.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Per-Profile Clock Control" icon="table-list">
+    Set independent CPU, GPU, and MEM frequencies for each power state: Handheld, USB Charging, PD Charging, and Docked.
+  </Card>
+  <Card title="Per-Title App Profiles" icon="gamepad">
+    Override global profiles for specific game title IDs, letting you boost demanding titles while leaving lighter ones at stock.
+  </Card>
+  <Card title="Over- and Undervolting" icon="bolt">
+    Fine-tune DVFS voltage tables for CPU and GPU rails, including SLT, HiOPT, HiOPT-15 mV, and High UV presets for GPU on both Erista and Mariko.
+  </Card>
+  <Card title="Thermal Throttling Control" icon="temperature-half">
+    Configure a thermal throttle threshold so the sysmodule automatically pulls clocks back before the console reaches unsafe temperatures.
+  </Card>
+  <Card title="KIP Settings Persistence" icon="floppy-disk">
+    Save your clock and voltage configuration directly into the KIP, making it survive reboots without re-applying settings through the overlay.
+  </Card>
+  <Card title="Real-Time Telemetry" icon="gauge">
+    Monitor live SoC, PCB, CPU, GPU, memory, and battery temperatures alongside instantaneous and average power draw and RAM bandwidth.
+  </Card>
+</CardGroup>
+
+## License
+
+Horizon OC is released under the **GNU General Public License v2.0 (GPL-2.0)**. Source code is available at [github.com/Horizon-OC/Horizon-OC](https://github.com/Horizon-OC/Horizon-OC). Contributions and forks must comply with the GPL-2.0 terms — derivative works must remain open source under the same license.

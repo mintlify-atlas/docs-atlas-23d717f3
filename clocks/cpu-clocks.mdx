@@ -1,0 +1,73 @@
+---
+title: "CPU Clock Frequencies for Nintendo Switch Overclocking"
+sidebarTitle: "CPU Clocks"
+description: "Complete CPU clock frequency table for Mariko and Erista Switch consoles in Horizon OC, from 612 MHz sleep mode up to 2703 MHz absolute maximum."
+---
+
+Horizon OC exposes the full range of CPU clock frequencies supported by the Tegra X1 (Erista) and Tegra X1+ / T210B01 (Mariko) SoCs, from 612 MHz used in sleep mode all the way to 2703 MHz at the absolute hardware ceiling. The CPU is the most straightforward module to overclock — increasing its frequency reduces per-frame CPU work time and improves frame pacing in CPU-bound titles — but pushing beyond the no-UV safe limits requires careful voltage tuning to maintain stability. Horizon OC sets conservative defaults out of the box: **1785 MHz** for Erista (`cpu_max_e`) and **1963 MHz** for Mariko (`cpu_max_m`), both of which are stable without any undervolting.
+
+<Note>
+Horizon OC distinguishes between the **boost clock** and the **max clock**. The boost clock is the frequency the CPU momentarily targets during short bursts of high demand. The max clock is the sustained ceiling the governor will not exceed. Both are independently configurable via `erista_cpu_boost_clock` / `mariko_cpu_boost_clock` and the max-clock settings respectively.
+</Note>
+
+## CPU Clock Table
+
+The table below lists every CPU frequency step available in Horizon OC. Frequencies are the same set on both Erista and Mariko unless a note specifies otherwise.
+
+| MHz | Notes |
+|-----|-------|
+| 2703 | Mariko absolute maximum — **dangerous**, hardware damage risk |
+| 2601 | Unsafe on all Mariko units |
+| 2499 | High overclock; requires undervolting on Mariko |
+| 2397 | Mariko safe maximum with undervolting (low speedo units) |
+| 2295 | Requires undervolting on Mariko |
+| 2193 | Requires undervolting on Mariko |
+| 2091 | Requires undervolting on Mariko |
+| 1963 | **Mariko default max** — stable without undervolting |
+| 1887 | — |
+| 1785 | **Erista default max** — stable without undervolting; Erista boost clock |
+| 1683 | — |
+| 1581 | Erista handheld cap (CPU is hard-limited here when undocked on Erista) |
+| 1428 | — |
+| 1326 | — |
+| 1224 | Sdev (developer kit) OC frequency |
+| 1122 | — |
+| 1020 | Official docked and handheld clock |
+| 918 | — |
+| 816 | — |
+| 714 | — |
+| 612 | Sleep mode clock |
+
+## Platform-Specific Limits
+
+<Note>
+On **Erista**, the CPU clock in handheld mode is capped to **1581 MHz** regardless of the configured maximum. This is enforced by the profile system and cannot be overridden without enabling uncapped clocks. In docked mode, the full configured maximum applies.
+</Note>
+
+## Relationship Between Speedo Value and Safe Max Clock
+
+<Tip>
+Each Mariko SoC is factory-tested and assigned a **CPU speedo value** that reflects the silicon quality of that particular chip. Higher speedo values indicate a unit that can run at higher frequencies more reliably at lower voltages. If your Mariko has a high CPU speedo, you may be able to push beyond 2397 MHz while undervolting. Check your speedo values in the Horizon OC overlay before configuring clocks above 1963 MHz. Low-speedo units should stay at or below 2397 MHz even with optimal undervolting.
+</Tip>
+
+## Default Config Values
+
+The out-of-the-box maximum CPU clocks are defined in `config.h`:
+
+```c
+// Erista (T210 / Icosa)
+HocClkConfigValue_EristaMaxCpuClock  → default: 1785 MHz   (key: "cpu_max_e")
+
+// Mariko (T210B01 / Iowa, Hoag, Aula)
+HocClkConfigValue_MarikoMaxCpuClock  → default: 1963 MHz   (key: "cpu_max_m")
+```
+
+These values can be changed from the Horizon OC overlay settings menu. After adjusting, tap **Save KIP Settings** to write the configuration.
+
+<Warning>
+CPU clocks of **2601 MHz and above** are explicitly flagged as unsafe in the Horizon OC source. At **2703 MHz** — the absolute hardware maximum — the risk of immediate instability or permanent silicon damage is significant even on high-speedo Mariko units. Do not use these frequencies without fully understanding the risks, having a complete NAND backup, and accepting that hardware damage is possible.
+</Warning>
+
+## Voltage Interaction
+
+Running the CPU above 1963 MHz on Mariko typically requires increasing or adjusting CPU voltage to maintain stability. See [Voltage Tuning](/clocks/voltage-tuning) for details on `mariko_cpu_uv_low`, `mariko_cpu_uv_high`, and how to configure the two-tier CPU undervolt system safely.

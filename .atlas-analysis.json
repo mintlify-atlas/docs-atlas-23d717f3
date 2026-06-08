@@ -1,0 +1,94 @@
+{
+  "projectType": "general",
+  "projectName": "Horizon OC",
+  "projectDescription": "An open-source overclocking tool for Nintendo Switch consoles running Atmosphere custom firmware, enabling advanced CPU, GPU, and RAM tuning via a KIP module, sysmodule daemon, and Ultrahand overlay.",
+  "theme": "aspen",
+  "primaryColor": "#53c4da",
+  "lightColor": "#0d4085",
+  "darkColor": "#fafbfb",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overlay",
+              "configuration/profiles",
+              "configuration/kip-settings"
+            ]
+          },
+          {
+            "group": "Clock Reference",
+            "pages": [
+              "clocks/cpu-clocks",
+              "clocks/gpu-clocks",
+              "clocks/ram-clocks",
+              "clocks/voltage-tuning"
+            ]
+          },
+          {
+            "group": "Monitor Overlay",
+            "pages": [
+              "monitor/overview",
+              "monitor/modes",
+              "monitor/configuration"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/ram-timings",
+              "advanced/dvfs-governor",
+              "advanced/safety",
+              "advanced/building"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "CPU overclocking up to 2703 MHz (Mariko) and 1785 MHz (Erista)",
+    "GPU overclocking up to 1536 MHz (Mariko) and 1075 MHz (Erista)",
+    "RAM overclocking up to 3200 MHz (Mariko) and 2400 MHz (Erista)",
+    "Per-game application clock profiles via Ultrahand overlay",
+    "Global and temporary real-time clock override",
+    "Over/undervolting with per-frequency voltage tables for CPU, GPU, and SOC",
+    "Custom LPDDR4X memory timing configuration (tRCD, tRP, tRAS, tRFC, etc.)",
+    "Thermal throttle guard with configurable temperature threshold",
+    "DVFS mode (PCV hijack) for fine-grained voltage-frequency scaling",
+    "hoc-clk sysmodule with IPC API for real-time clock/sensor monitoring",
+    "Horizon OC Monitor overlay: Full, Mini, Micro, FPS Counter, FPS Graph modes",
+    "Benchmark Toolbox with FurMark stress test",
+    "Multilingual overlay UI (16 languages)",
+    "Supports Erista (T210), Mariko (T214/T210B01), and all Switch form factors (V1, V2, Lite, OLED)"
+  ],
+  "publicApiSurface": [
+    "hoc:clk IPC service (HOCCLK_IPC_SERVICE_NAME)",
+    "HocClkIpcCmd_GetApiVersion",
+    "HocClkIpcCmd_GetCurrentContext",
+    "HocClkIpcCmd_GetProfiles / SetProfiles",
+    "HocClkIpcCmd_SetEnabled",
+    "HocClkIpcCmd_SetOverride",
+    "HocClkIpcCmd_GetConfigValues / SetConfigValues",
+    "HocClkIpcCmd_GetFreqList",
+    "HocClkIpcCmd_SetKipData / GetKipData",
+    "HocClkContext (stable struct layout v0x500)",
+    "HocClkConfigValue enum (poll_interval_ms, cpu_max_m, cpu_max_e, thermal_throttle, dvfs_mode, gpu_scheduling, …)",
+    "KipConfigValue enum (mariko_emc_max_clock, mariko_cpu_uv_low, g_volt_*, g_soc_volt_*, t1_trcd … t8_trefi, …)",
+    "CustomizeTable struct (KIP binary patch data: CUST rev 4, KIP version 241)",
+    "HocClkProfile enum (Handheld, HandheldChargingUSB, HandheldChargingOfficial, Docked)",
+    "HocClkModule enum (CPU, GPU, MEM, Governor, Display)",
+    "config/horizon-oc/ INI configuration file"
+  ]
+}

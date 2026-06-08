@@ -1,47 +1,160 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with Horizon OC in Minutes"
+sidebarTitle: "Quickstart"
+description: "Open the Horizon OC overlay, set your first CPU and GPU overclock, and save KIP settings to persist clocks across reboots — all in under five minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+With Horizon OC installed and booted, you can apply your first overclock in a few overlay interactions. This guide walks you through opening the Horizon OC overlay, choosing conservative safe clocks for your console, and saving the configuration so it persists across reboots.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+<Warning>
+  **Higher clocks require stability testing.** Start with the conservative values below and test for stability before pushing further. Unstable RAM overclocks in particular can cause file system corruption. Always keep your NAND and SD backups up to date.
+</Warning>
 
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+## Opening the Overlay
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Open the Ultrahand overlay">
+    While in a game or on the home screen, hold the **Minus (−)** button (or whichever button combo you have configured in Ultrahand) to open the Ultrahand overlay menu.
 
-    ```bash
-    npm install your-package
-    ```
+    <Tip>
+      You can change the activation combo in Ultrahand's own settings menu if Minus conflicts with a game.
+    </Tip>
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Navigate to Horizon OC">
+    Scroll through the Ultrahand menu and select **Horizon OC** from the list of installed packages. This opens the Horizon OC main menu.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Explore the main menu options">
+    The Horizon OC main menu contains the following entries:
+
+    | Menu Entry | Purpose |
+    |---|---|
+    | **Edit App Profile** | Set per-title CPU/GPU/MEM frequencies for the currently running application's title ID |
+    | **Edit Global Profile** | Set default frequencies applied to all titles that do not have an app profile |
+    | **Temporary Overrides** | Apply an immediate one-shot frequency override that is not saved to any profile |
+    | **Settings** | Configure sysmodule behaviour, thermal throttle thresholds, voltage options, and save KIP settings |
+    | **About** | Display version information and connected sysmodule API version |
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Setting a Global Overclock
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+A global profile applies to every game that does not have a dedicated app profile. This is the best place to start.
+
+<Steps>
+  <Step title="Enter Edit Global Profile">
+    From the main menu, select **Edit Global Profile**.
+  </Step>
+
+  <Step title="Select a power-state profile">
+    Horizon OC stores separate clock settings for each of the following profiles, matching the Switch's current power state:
+
+    | Profile | When Active |
+    |---|---|
+    | `Handheld` | Running on battery, no charger connected |
+    | `HandheldChargingUSB` | Charging via a USB-A or third-party charger |
+    | `HandheldChargingOfficial` | Charging via the official Nintendo USB-C PD charger |
+    | `Docked` | Console is in the dock (not shown on Switch Lite / Hoag) |
+
+    Select the profile you want to configure first. **Docked** is a good starting point since thermal headroom is highest when the console is docked.
+  </Step>
+
+  <Step title="Set CPU, GPU, and MEM frequencies">
+    Inside the selected profile, you will see three modules you can configure:
+
+    | Module | Description |
+    |---|---|
+    | `CPU` | ARM Cortex-A57 cluster frequency in MHz |
+    | `GPU` | NVIDIA Maxwell GPU frequency in MHz |
+    | `MEM` | LPDDR4(X) EMC (External Memory Controller) frequency in MHz |
+
+    Use the recommended starting values for your console from the table below, then select your chosen frequency from the list of available values provided by the overlay.
+
+    <Tip>
+      Setting a frequency to `0` tells hoc-clk to leave that module at whatever the system default is for the current profile, which is useful if you only want to overclock one component at a time.
+    </Tip>
+  </Step>
+
+  <Step title="Repeat for other profiles as needed">
+    Go back and repeat for the other power-state profiles — for example, set lower clocks for `Handheld` to preserve battery life, and higher clocks for `Docked` where sustained performance is the goal.
+  </Step>
+</Steps>
+
+## Recommended Starting Clocks
+
+These values are conservative, do not require undervolting, and are a stable baseline for most consoles. Refer to the README clock table for the full list of available frequencies.
+
+<Tabs>
+  <Tab title="Mariko (V2 / Lite / OLED)">
+    Mariko hardware (Iowa V2, Hoag Lite, Aula OLED) runs the T214/T210B01 SoC and supports the highest clock ceilings.
+
+    | Module | Conservative Starting Value | No-UV Maximum |
+    |---|---|---|
+    | CPU | **1963 MHz** | 1963 MHz |
+    | GPU | **921 MHz** | 1075 MHz |
+    | RAM | **1866 MHz** | 2133 MHz (4266 modules) |
+
+    ```
+    Profile: Docked
+      CPU: 1963 MHz
+      GPU:  921 MHz
+      MEM: 1866 MHz
+    ```
+
+    <Note>
+      1963 MHz is the Mariko CPU maximum without undervolting. Pushing to 2397 MHz or higher requires an SLT-level CPU undervolting table. RAM at 1866 MHz corresponds to JEDEC standard for 3733 MT/s modules — a safe, widely tested value.
+    </Note>
+  </Tab>
+  <Tab title="Erista (V1)">
+    Erista hardware (Icosa V1) runs the original T210 SoC. It has lower absolute ceilings and additional handheld-mode caps.
+
+    | Module | Conservative Starting Value | No-UV Maximum |
+    |---|---|---|
+    | CPU | **1785 MHz** | 1785 MHz |
+    | GPU | **921 MHz** | 921 MHz |
+    | RAM | **1600 MHz** | 1600 MHz |
+
+    ```
+    Profile: Docked
+      CPU: 1785 MHz
+      GPU:  921 MHz
+      MEM: 1600 MHz
+    ```
+
+    <Note>
+      On Erista, handheld CPU is automatically capped to 1581 MHz and handheld GPU to 460 MHz regardless of your profile setting. GPU clocks above 768 MHz require the official Nintendo USB-C PD charger to be connected. RAM at 1600 MHz is the Erista JEDEC standard maximum and the official docked clock.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Saving Settings Across Reboots
+
+Profile clock settings are held in memory by the `hoc-clk` sysmodule and survive sleep/wake cycles, but they are lost on a full reboot unless you write them into the KIP.
+
+<Steps>
+  <Step title="Open Settings">
+    From the Horizon OC main menu, select **Settings**.
+  </Step>
+
+  <Step title="Save KIP Settings">
+    Select **Save KIP Settings**. This writes your current clock and voltage configuration into `hoc.kip` on the SD card.
+
+    After saving, your overclock will automatically be active on every subsequent boot without needing to reopen the overlay.
+
+    <Tip>
+      Re-run **Save KIP Settings** any time you change your profile configuration and want the changes to persist after the next reboot.
+    </Tip>
+  </Step>
+</Steps>
+
+## Temporary Overrides vs. Saved Profiles
+
+Horizon OC provides two ways to apply clocks:
+
+| Method | Persists After Reboot? | Scope |
+|---|---|---|
+| **Saved Profiles** (Edit Global / App Profile) | Yes, after Save KIP Settings | All titles (global) or a specific title ID (app) |
+| **Temporary Overrides** | No — reset on next boot or profile switch | Immediate, one-shot, affects any running title |
+
+Use **Temporary Overrides** when you want to test a frequency quickly without committing it to your saved configuration. Use **Edit Global Profile** + **Save KIP Settings** once you have found stable values you want to keep permanently.

@@ -1,0 +1,99 @@
+---
+title: "Horizon OC Monitor Overlay: Real-Time Switch Telemetry"
+sidebarTitle: "Overview"
+description: "The Horizon OC Monitor overlay displays live CPU, GPU, RAM frequencies, temperatures, FPS, battery draw, and RAM bandwidth on-screen while you play."
+---
+
+The Horizon OC Monitor overlay is a separate Tesla/Ultrahand overlay that runs alongside the main Horizon OC frequency-management overlay. While the main Horizon OC overlay lets you set CPU, GPU, and RAM clock targets, the Monitor overlay gives you a persistent on-screen heads-up display of what the hardware is actually doing — frequencies, thermals, frame rate, battery draw, RAM bandwidth, and more — without leaving your game. The two overlays are independent; you can run Monitor with or without the main Horizon OC overlay active.
+
+## Display Modes
+
+Monitor ships with eight display modes selectable from its main menu. Each mode is tuned for a different level of detail or screen real estate.
+
+| Mode | Summary |
+|---|---|
+| **Full** | Complete multi-section readout: CPU, GPU, RAM, board temps, battery, and optional FPS/resolution data |
+| **Mini** | Single-line compact overlay; touch the screen to reposition it |
+| **Micro** | Ultra-compact one-liner with throttle indicators; touch to reposition |
+| **FPS Counter** | Minimal FPS digit display at 31 Hz + vsync; touch to reposition |
+| **FPS Graph** | Scrolling average-FPS graph with color-coded target lines |
+| **Battery** | Detailed battery health and charge metrics |
+| **Miscellaneous** | DSP usage, NVDEC/NVENC/NVJPG frequencies, network type, and Wi-Fi password reveal |
+| **Game Resolutions** | Live depth and viewport resolution data captured from NVN, EGL, and Vulkan hooks |
+
+## Optional Dependencies
+
+Two third-party system modules unlock additional data sources. Neither is required for the overlay to run, but several modes become significantly more informative — or unavailable — without them.
+
+<Note>
+**SaltyNX** is required for all FPS data (FPS Counter, FPS Graph, PFPS, FPS fields in Full/Mini/Micro) and for Game Resolutions mode. Without it those fields show `n/d` or are hidden entirely.
+
+Install from the [SaltyNX releases page](https://github.com/masagrator/SaltyNX/releases). Game Resolutions mode specifically requires **SaltyNX 0.9.0 or later**.
+</Note>
+
+<Note>
+**sys-clk 2.0.0_rc4 or later** is required to display real (measured) CPU, GPU, and RAM frequencies instead of target frequencies, and to display RAM load percentages. Closed-source sys-clk forks may return incorrect real clock rates and RAM load values.
+
+Install from the [sys-clk releases page](https://github.com/retronx-team/sys-clk/releases).
+</Note>
+
+## Data Sources
+
+The Monitor overlay draws telemetry from three groups of hardware sensors exposed by the `hoc-clk` library.
+
+### Thermal Sensors (`HocClkThermalSensor`)
+
+| Sensor | Description |
+|---|---|
+| `SOC` | SoC die temperature in m°C |
+| `PCB` | PCB surface temperature in m°C |
+| `Skin` | Derived skin temperature used by Nintendo's thermal shutdown logic (requires FW 5.0.0+) |
+| `Battery` | Battery cell temperature in m°C |
+| `PMIC` | PMIC sensor — always returns 50.0 °C (hardware limitation) |
+| `CPU` | CPU cluster temperature in m°C |
+| `GPU` | GPU temperature in m°C |
+| `MEM` | Memory temperature in m°C (returns PLLX sensor value on Mariko hardware) |
+| `PLLX` | PLLX temperature in m°C |
+| `AO` | AOTAG (always-on) temperature sensor |
+| `BQ24193` | BQ24193 charger IC temperature zone (Normal / Warm / Hot / Overheat) |
+
+### Power Sensors (`HocClkPowerSensor`)
+
+| Sensor | Description |
+|---|---|
+| `Now` | Instantaneous power draw |
+| `Avg` | Average power draw over a rolling window |
+
+### Part Loads (`HocClkPartLoad`)
+
+| Load | Description |
+|---|---|
+| `EMC` | Total EMC (RAM controller) load |
+| `EMCCpu` | CPU's share of EMC load |
+| `GPU` | GPU load from the PMU |
+| `CPUMax` | Maximum CPU core load |
+| `BAT` | Battery raw charge percentage |
+| `FAN` | Fan rotation level |
+| `RamBWAll` | Total RAM bandwidth utilization |
+| `RamBWCpu` | CPU RAM bandwidth utilization |
+| `RamBWGpu` | GPU RAM bandwidth utilization |
+| `RamBWPeak` | Maximum possible RAM bandwidth (hardware ceiling) |
+
+## Opening the Monitor Overlay
+
+The Monitor overlay is launched through Ultrahand (or any compatible Tesla-based overlay menu). Press the combo configured in Ultrahand to open the overlay menu, then select **Horizon OC Monitor** from the list.
+
+<Tip>
+The default exit combo for Full, Mini, Micro, FPS Counter, and FPS Graph modes is **L + D-Down + R-Stick**. You can change this in `config.ini` via the `key_combo` key under `[status-monitor]`.
+</Tip>
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Display Modes" icon="display" href="/monitor/modes">
+    Detailed reference for every Monitor overlay mode: what each field shows, its format string, and any dependency requirements.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/monitor/configuration">
+    Full `config.ini` reference covering all sections: colors, refresh rates, font sizes, and layout alignment options.
+  </Card>
+</CardGroup>

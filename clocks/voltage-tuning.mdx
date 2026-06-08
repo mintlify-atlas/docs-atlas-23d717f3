@@ -1,0 +1,190 @@
+---
+title: "Voltage Tuning: Undervolting and Overvolting on Switch"
+sidebarTitle: "Voltage Tuning"
+description: "Tune CPU, GPU, and RAM voltages in Horizon OC to reduce heat and power draw with undervolting, or enable higher clocks safely with carefully raised voltages."
+---
+
+Voltage tuning is the process of adjusting the supply voltage for individual hardware modules to either reduce power consumption and heat (undervolting) or to stabilise higher-than-default clock frequencies (overvolting). On Switch hardware, the two goals are not mutually exclusive: undervolting the GPU and CPU at moderate clocks can reduce thermal throttle pressure, allowing the RAM clock to be raised without exceeding thermal limits. Overvolting is only ever necessary when pushing clock frequencies beyond what the silicon can sustain at its nominal voltage, and carries the risk of excess heat and reduced component longevity if overdone. Horizon OC exposes fine-grained per-frequency voltage tables for every major module, giving advanced users precise control over the entire DVFS (Dynamic Voltage and Frequency Scaling) operating curve.
+
+<Warning>
+Raising voltages beyond safe limits can cause **thermal damage**, system instability, and reduced hardware lifespan. Always increase voltages incrementally, monitor temperatures using the Horizon OC overlay, and test stability thoroughly after each change. Do not exceed the maximum voltage values present in your console's factory DVFS tables without understanding the consequences.
+</Warning>
+
+## Voltage Rails
+
+Horizon OC monitors and (where writable) controls six voltage rails, defined in the `HocClkVoltage` enum in `board.h`:
+
+| Enum | Rail Name | Description |
+|------|-----------|-------------|
+| `HocClkVoltage_SOC` | VDD\_SOC | SoC core rail — powers the memory controller and interconnect fabric |
+| `HocClkVoltage_EMCVDD2` | DRAM VDD2 | Primary LPDDR4X supply voltage |
+| `HocClkVoltage_CPU` | CPU | CPU cluster supply rail |
+| `HocClkVoltage_GPU` | GPU | GPU core supply rail |
+| `HocClkVoltage_EMCVDDQ` | DRAM VDDQ | LPDDR4X I/O termination voltage (Mariko only) |
+| `HocClkVoltage_Display` | Display | Display panel supply rail |
+| `HocClkVoltage_Battery` | Battery | Battery voltage — **read-only**, monitoring only |
+
+---
+
+## CPU Voltage Tuning
+
+### Mariko
+
+Mariko uses a two-tier CPU undervolt system that applies different offsets to the low-frequency and high-frequency portions of the CPU DVFS curve:
+
+<ParamField path="mariko_cpu_uv_low" type="u32">
+  Undervolt offset (in mV) applied to low-frequency CPU operating points on Mariko. Lower frequencies run cooler and tolerate a larger UV margin. Start conservatively (e.g. 6–12 mV) and increase only after stability testing.
+</ParamField>
+
+<ParamField path="mariko_cpu_uv_high" type="u32">
+  Undervolt offset (in mV) applied to high-frequency CPU operating points on Mariko. This directly affects the voltage at clocks above the tier boundary. Values that are too aggressive here will cause crashes or hangs at high CPU loads.
+</ParamField>
+
+Additional Mariko CPU voltage bounds:
+
+<ParamField path="mariko_cpu_low_vmin" type="u32">
+  Minimum voltage floor for low-frequency Mariko CPU operating points. Prevents the undervolt from pushing below a safe minimum.
+</ParamField>
+
+<ParamField path="mariko_cpu_high_vmin" type="u32">
+  Minimum voltage floor for high-frequency Mariko CPU operating points.
+</ParamField>
+
+<ParamField path="mariko_cpu_max_volt" type="u32">
+  Maximum CPU voltage cap on Mariko. Clamps the high-frequency overvolt ceiling.
+</ParamField>
+
+**Speedo interaction:** Each Mariko unit has a factory CPU speedo value readable from the Horizon OC overlay. Higher speedo values indicate silicon that runs efficiently and can tolerate larger undervolt margins. A high-speedo unit might be stable with `mariko_cpu_uv_high` of 25 mV or more, while a low-speedo unit may crash above 6–8 mV. Always verify your speedo before tuning aggressively.
+
+### Erista
+
+Erista uses a single flat undervolt offset across the entire CPU DVFS table:
+
+<ParamField path="erista_cpu_uv" type="u32">
+  Global CPU undervolt offset in mV for Erista (T210) units. Applied uniformly to all CPU frequency operating points.
+</ParamField>
+
+<ParamField path="erista_cpu_vmin" type="u32">
+  Minimum voltage floor for Erista CPU operating points.
+</ParamField>
+
+<ParamField path="erista_cpu_max_volt" type="u32">
+  Maximum voltage cap for Erista CPU.
+</ParamField>
+
+---
+
+## GPU Voltage Tuning
+
+### UV Levels
+
+GPU undervolting in Horizon OC is tier-based. The `GPUUndervoltLevel` enum (from `board.h`) selects which pre-tuned voltage table is loaded for each platform:
+
+| Value | Name | Description |
+|-------|------|-------------|
+| `GPUUVLevel_NoUV` (0) | No UV | Stock Nintendo voltage table. Maximum thermal load per clock step. |
+| `GPUUVLevel_SLT` (1) | SLT | Conservative undervolt for stable long-term use. |
+| `GPUUVLevel_HiOPT` (2) | HiOPT | Optimised efficiency table for most units. Recommended starting point. |
+| `GPUUVLevel_HiOPT15` (3) | HiOPT-15mV | HiOPT minus an additional 15 mV. Best efficiency, requires stable silicon. |
+| `GPUUVLevel_HighUV` (4) | High UV | Overvolt tier — raises GPU voltages to support clocks above 1152 MHz on Mariko. |
+
+### Per-Frequency Voltage Arrays
+
+Beyond the UV level presets, each GPU frequency step has an individually addressable voltage entry:
+
+**Mariko** — 24 entries covering 76 MHz through 1536 MHz:
+
+```
+g_volt_76800    g_volt_153600   g_volt_230400   g_volt_307200
+g_volt_384000   g_volt_460800   g_volt_537600   g_volt_614400
+g_volt_691200   g_volt_768000   g_volt_844800   g_volt_921600
+g_volt_998400   g_volt_1075200  g_volt_1152000  g_volt_1228800
+g_volt_1267200  g_volt_1305600  g_volt_1344000  g_volt_1382400
+g_volt_1420800  g_volt_1459200  g_volt_1497600  g_volt_1536000
+```
+
+**Erista** — 27 entries covering 76 MHz through 1075 MHz:
+
+```
+g_volt_e_76800   g_volt_e_115200  g_volt_e_153600  g_volt_e_192000
+g_volt_e_230400  g_volt_e_268800  g_volt_e_307200  g_volt_e_345600
+g_volt_e_384000  g_volt_e_422400  g_volt_e_460800  g_volt_e_499200
+g_volt_e_537600  g_volt_e_576000  g_volt_e_614400  g_volt_e_652800
+g_volt_e_691200  g_volt_e_729600  g_volt_e_768000  g_volt_e_806400
+g_volt_e_844800  g_volt_e_883200  g_volt_e_921600  g_volt_e_960000
+g_volt_e_998400  g_volt_e_1036800 g_volt_e_1075200
+```
+
+### Global GPU Voltage Offset
+
+<ParamField path="common_gpu_volt_offset" type="s32">
+  A signed integer offset (in mV) applied uniformly to all GPU voltage entries after the UV-level table is loaded. Use this for fine global adjustments without editing individual frequency entries. Negative values reduce voltage (UV); positive values raise it (OV).
+</ParamField>
+
+Additional Mariko GPU voltage bounds:
+
+<ParamField path="mariko_gpu_vmin" type="u32">
+  Minimum voltage floor for Mariko GPU operating points.
+</ParamField>
+
+<ParamField path="mariko_gpu_vmax" type="u32">
+  Maximum voltage ceiling for Mariko GPU operating points. Guards against runaway overvolt.
+</ParamField>
+
+<ParamField path="mariko_gpu_boot_volt" type="u32">
+  GPU voltage used at boot before the DVFS table is fully applied.
+</ParamField>
+
+---
+
+## RAM Voltage Tuning
+
+LPDDR4X uses two separate supply rails. Both are tunable in Horizon OC:
+
+<ParamField path="common_emc_mem_volt" type="u32">
+  VDD2 voltage for the LPDDR4X memory array (applies to both Erista and Mariko). Higher EMC clock targets typically require a higher VDD2. Units are mV.
+</ParamField>
+
+<ParamField path="mariko_emc_vddq_volt" type="u32">
+  VDDQ voltage for the LPDDR4X I/O termination rail on Mariko. VDDQ is a fraction of VDD2 (typically ~0.5× VDD2). Incorrect VDDQ can cause bus signal integrity issues at high EMC clocks. **Mariko only.**
+</ParamField>
+
+<Tip>
+Start RAM voltage tuning at the JEDEC-recommended VDD2 and VDDQ values for your target EMC speed grade. Only raise above JEDEC levels if you observe instability at a frequency where the spec voltage is not sufficient — and do so in small (25–50 mV) increments with stability testing after each step.
+</Tip>
+
+---
+
+## SOC Voltage Tuning
+
+The SOC rail powers the memory controller (EMC) and interconnect on Mariko. It scales with RAM frequency via a per-frequency voltage array:
+
+<ParamField path="soc_vmax" type="u32">
+  Global SOC voltage maximum on Mariko (`marikoSocVmax`). Acts as a hard ceiling for all per-frequency SOC voltage entries.
+</ParamField>
+
+The 26-entry SOC voltage array maps one voltage per RAM frequency step from 1866 MHz through 3200 MHz:
+
+```
+g_soc_volt_1866000   g_soc_volt_2000000   g_soc_volt_2133000
+g_soc_volt_2200000   g_soc_volt_2266000   g_soc_volt_2333000
+g_soc_volt_2400000   g_soc_volt_2433000   g_soc_volt_2466000
+g_soc_volt_2533000   g_soc_volt_2566000   g_soc_volt_2600000
+g_soc_volt_2666000   g_soc_volt_2700000   g_soc_volt_2733000
+g_soc_volt_2766000   g_soc_volt_2800000   g_soc_volt_2833000
+g_soc_volt_2900000   g_soc_volt_2933000   g_soc_volt_3000000
+g_soc_volt_3033000   g_soc_volt_3100000   g_soc_volt_3133000
+g_soc_volt_3166000   g_soc_volt_3200000
+```
+
+Each key name encodes the RAM frequency in kHz. For example, `g_soc_volt_2133000` is the SOC voltage applied when the EMC is running at 2133 MHz (2,133,000 kHz). Increasing SOC voltage at high RAM clocks can resolve EMC-related instability that is not resolved by raising VDD2 alone.
+
+---
+
+## DVFS Mode Interaction
+
+Horizon OC's DVFS governor (`dvfs_mode`) controls how the system transitions between operating points. When `DVFSMode_Hijack` is active, Horizon OC intercepts PCV (Power Control and Voltage) DVFS requests and applies the custom voltage tables defined above. If DVFS is disabled, voltage transitions revert to Nintendo's stock behaviour. An offset (`dvfs_offset`) allows fine-tuning the DVFS switching thresholds. See the [DVFS Governor](/advanced/dvfs-governor) page for detailed configuration.
+
+<Note>
+The `live_cpu_uv` config flag (`HocClkConfigValue_LiveCpuUv`) enables or disables real-time CPU undervolt application. When enabled, CPU voltage changes take effect immediately without requiring a reboot. This is useful for iterative tuning but should be disabled in production configurations once stable values are found.
+</Note>

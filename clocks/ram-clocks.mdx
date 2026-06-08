@@ -1,0 +1,111 @@
+---
+title: "RAM Clock Frequencies for Nintendo Switch Overclocking"
+sidebarTitle: "RAM Clocks"
+description: "Complete LPDDR4X RAM/EMC clock table for Mariko and Erista Switch consoles in Horizon OC, including JEDEC standard speeds and maximum safe overclocks."
+---
+
+RAM (EMC) overclocking delivers some of the most impactful system-wide performance gains in Horizon OC — higher memory bandwidth directly benefits both CPU and GPU workloads, often more noticeably than raising either compute module's clock alone. However, it is also the riskiest change you can make: the Tegra EMC controller is tightly coupled to NAND flash I/O paths in Horizon OS, and an unstable RAM frequency can cause filesystem corruption on both the SD card and internal NAND storage. Always create a full backup before changing EMC clocks.
+
+<Warning>
+**RAM overclocking can cause NAND or SD card corruption.** Before changing any EMC clock setting, ensure you have a complete backup of your NAND, PROINFO, EMUMMC, and SD card contents. This is not optional. A failed RAM overclock can render your console unable to boot without a NAND restore.
+</Warning>
+
+## Platform Limits
+
+| Console | SoC | LPDDR4X Max (Horizon OC) | MT/s |
+|---------|-----|--------------------------|------|
+| Erista (V1 Icosa) | T210 | 2400 MHz | 4800 MT/s |
+| Mariko (V2 Iowa, Lite Hoag, OLED Aula) | T210B01 / T214 | 3200 MHz | 6400 MT/s |
+
+The Erista EMC controller tops out at the LPDDR4X JEDEC 4800 standard (2400 MHz). Mariko's newer EMC controller supports up to JEDEC 6400 (3200 MHz) with appropriate timing configuration.
+
+## RAM Clock Table
+
+MT/s figures are calculated as MHz × 2 (double data rate). JEDEC designations refer to the official LPDDR4X speed grade standard.
+
+| MHz | MT/s | Notes |
+|-----|------|-------|
+| 3200 | 6400 | Mariko maximum — JEDEC 6400 |
+| 3166 | 6332 | — |
+| 3133 | 6266 | — |
+| 3100 | 6200 | — |
+| 3066 | 6132 | — |
+| 3033 | 6066 | — |
+| 3000 | 6000 | — |
+| 2966 | 5932 | — |
+| 2933 | 5866 | JEDEC standard |
+| 2900 | 5800 | — |
+| 2866 | 5732 | — |
+| 2833 | 5666 | — |
+| 2800 | 5600 | — |
+| 2766 | 5532 | — |
+| 2733 | 5466 | — |
+| 2700 | 5400 | — |
+| 2666 | 5332 | JEDEC standard |
+| 2633 | 5266 | — |
+| 2600 | 5200 | — |
+| 2566 | 5132 | — |
+| 2533 | 5066 | — |
+| 2500 | 5000 | — |
+| 2466 | 4932 | — |
+| 2433 | 4866 | — |
+| 2400 | 4800 | **Erista maximum** — JEDEC 4800 |
+| 2366 | 4732 | — |
+| 2333 | 4666 | — |
+| 2300 | 4600 | — |
+| 2266 | 4532 | — |
+| 2233 | 4466 | — |
+| 2200 | 4400 | — |
+| 2166 | 4332 | — |
+| 2133 | 4266 | Mariko JEDEC standard max for 4266 modules |
+| 2100 | 4200 | — |
+| 2066 | 4132 | — |
+| 2033 | 4066 | — |
+| 2000 | 4000 | — |
+| 1996 | 3992 | JEDEC standard |
+| 1966 | 3932 | — |
+| 1933 | 3866 | — |
+| 1900 | 3800 | — |
+| 1866 | 3733 | Mariko JEDEC standard max for 3733 modules |
+| 1833 | 3666 | — |
+| 1800 | 3600 | — |
+| 1766 | 3532 | — |
+| 1733 | 3466 | — |
+| 1700 | 3400 | — |
+| 1666 | 3332 | — |
+| 1633 | 3266 | — |
+| 1600 | 3200 | Official docked / boost mode; Erista JEDEC 3200 max |
+| 1331 | 2662 | Official handheld — JEDEC standard |
+| 1065 | 2130 | — |
+| 800 | 1600 | — |
+| 665 | 1330 | — |
+
+## Available Timing Folders
+
+Horizon OC ships pre-tuned timing sets for the four standard JEDEC breakpoints on Mariko (`timings/Mariko/AA/`):
+
+- `1331` — Official handheld baseline timings
+- `1600` — Official docked baseline timings
+- `1866` — JEDEC 3733 module timings
+- `2133` — JEDEC 4266 module timings
+
+Timings for non-JEDEC frequencies above 2133 MHz are interpolated or carried from the 2133 MHz set. Individual timing parameters (`t1_trcd`, `t2_trp`, `t3_tras`, etc.) can be fine-tuned manually via the KIP config for advanced users.
+
+## Key Config Values
+
+The following config keys control EMC frequency and voltage:
+
+| Config Key | Description |
+|---|---|
+| `mariko_emc_max_clock` | Maximum EMC clock for Mariko, in kHz |
+| `erista_emc_max_clock2` | Maximum EMC clock for Erista, in kHz |
+| `common_emc_mem_volt` | VDD2 voltage for the EMC/DRAM rails (both platforms) |
+| `mariko_emc_vddq_volt` | VDDQ voltage for Mariko DRAM (Mariko only) |
+
+<Tip>
+Start at a JEDEC-standard frequency for your RAM module rating (1866 MHz or 2133 MHz for most Mariko units) before pushing higher. JEDEC speeds use well-validated timing parameters and are significantly more stable than non-standard intermediate steps. Only move to frequencies above your module's JEDEC max after confirming stability, and increase in small increments — 33–66 MHz steps — with thorough testing between each change.
+</Tip>
+
+## Voltage Interaction
+
+Higher EMC clocks typically require raising `common_emc_mem_volt` (VDD2) and, on Mariko, `mariko_emc_vddq_volt` (VDDQ). The SOC voltage also scales with RAM frequency on Mariko via the `g_soc_volt_*` per-frequency array. See [Voltage Tuning](/clocks/voltage-tuning) for a full explanation of each rail and safe tuning ranges.

@@ -1,0 +1,71 @@
+---
+title: "GPU Clock Frequencies for Nintendo Switch Overclocking"
+sidebarTitle: "GPU Clocks"
+description: "Full GPU clock frequency table for Mariko and Erista Switch consoles in Horizon OC, from 76 MHz up to 1536 MHz, with safety ratings and handheld limits."
+---
+
+The Switch GPU (an NVIDIA Maxwell-architecture core embedded in the Tegra X1/X1+) responds well to overclocking and typically delivers the most visible per-frame uplift of any module. Horizon OC exposes 22 GPU clock steps ranging from 76 MHz boost mode all the way to 1536 MHz on Mariko. Safe maximums vary significantly between console generations and depend directly on which GPU undervolt (UV) level you select. Erista (T210) units have a lower power ceiling — especially in handheld — while Mariko (T210B01/T214) units can sustain higher clocks with appropriate voltage tuning. The default out-of-the-box maximums are **921 MHz** for Erista and **1075 MHz** for Mariko.
+
+## GPU Undervolt Levels
+
+Horizon OC defines five GPU undervolt tiers in `board.h`. The level you choose determines both the per-frequency voltage table applied and the safe maximum clock available:
+
+| Enum Value | Config String | Description |
+|---|---|---|
+| `GPUUVLevel_NoUV` | No UV | No undervolting; stock voltage table. Lowest clock ceiling per watt. |
+| `GPUUVLevel_SLT` | SLT | Slight undervolt optimised for standard operating temperatures. |
+| `GPUUVLevel_HiOPT` | HiOPT | Aggressive efficiency optimisation; best performance-per-watt for most users. |
+| `GPUUVLevel_HiOPT15` | HiOPT-15mV | HiOPT with an additional 15 mV reduction; highest efficiency, requires stable silicon. |
+| `GPUUVLevel_HighUV` | High UV | **Overvolt** tier — raises GPU voltage to unlock the highest safe clock on Mariko. |
+
+<Tip>
+Start with **HiOPT** (`GPUUVLevel_HiOPT`). It provides the best efficiency for the majority of Mariko and Erista units without pushing voltages to extremes, and raises the Mariko handheld GPU cap to 614 MHz while keeping thermals well in check.
+</Tip>
+
+## GPU Clock Table
+
+| MHz | Notes |
+|-----|-------|
+| 1536 | Mariko absolute maximum — **extremely dangerous**, risk of hardware damage |
+| 1459 | Very high Mariko OC; requires High UV |
+| 1382 | High Mariko OC; requires High UV |
+| 1305 | High Mariko OC; requires High UV |
+| 1267 | NVIDIA T214 (Mariko) rated clock |
+| 1228 | Mariko safe maximum with High UV |
+| 1152 | Mariko safe maximum with HiOPT-15mV |
+| 1075 | Mariko HiOPT safe max; **Erista absolute maximum** — very dangerous on Erista |
+| 998 | NVIDIA T210 (Erista) rated clock |
+| 960 | Erista only — safe maximum with High UV or HiOPT-15mV |
+| 921 | Erista no-UV safe maximum |
+| 844 | — |
+| 768 | Official docked clock; Mariko handheld cap with High UV |
+| 691 | Mariko handheld cap with HiOPT-15mV |
+| 614 | Mariko handheld cap with HiOPT |
+| 537 | — |
+| 460 | Handheld maximum (Erista cap in handheld) |
+| 384 | Official handheld clock |
+| 307 | Official handheld clock |
+| 230 | — |
+| 153 | — |
+| 76 | Boost mode clock |
+
+## Handheld and Charging Caps
+
+<Note>
+On **Erista**, the GPU is hard-capped at **460 MHz** in handheld mode. Clocks above **768 MHz on Erista require the official Nintendo USB-C PD charger to be plugged in** — the higher power draw cannot be sustained from battery alone.
+
+On **Mariko**, the handheld GPU cap scales with the UV level selected:
+- **HiOPT** → cap is **614 MHz**
+- **HiOPT-15mV** → cap is **691 MHz**
+- **High UV** → cap is **768 MHz**
+
+These caps are enforced by the profile system and exist to protect battery longevity and thermal limits in handheld.
+</Note>
+
+<Warning>
+**1536 MHz is the absolute GPU maximum on Mariko and is extremely dangerous.** Even on healthy high-speedo Mariko units, running at this frequency risks GPU instability, excessive heat, and potential silicon damage. Do not use this clock step without thorough stability testing, active cooling, and a complete NAND backup in place. Approach frequencies above 1228 MHz with extreme caution.
+</Warning>
+
+## Per-Frequency Voltage Configuration
+
+Each GPU frequency step has an individually tunable voltage entry in the KIP config. Mariko uses a 24-entry array (`g_volt_76800` through `g_volt_1536000`) and Erista uses a 27-entry array (`g_volt_e_76800` through `g_volt_e_1075200`). A global `common_gpu_volt_offset` can shift all GPU voltages up or down simultaneously. See [Voltage Tuning](/clocks/voltage-tuning) for details.

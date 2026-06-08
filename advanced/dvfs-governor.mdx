@@ -1,0 +1,137 @@
+---
+title: "DVFS and CPU Governor Configuration in Horizon OC"
+sidebarTitle: "DVFS & Governor"
+description: "Configure Dynamic Voltage and Frequency Scaling (DVFS) and the CPU frequency governor in Horizon OC to balance performance and power efficiency."
+---
+
+Dynamic Voltage and Frequency Scaling (DVFS) lets the Switch adjust the voltage supplied to a component in lock-step with its operating frequency, reducing power draw and heat at lower clocks while ensuring enough voltage headroom at high clocks. Horizon OC can override the firmware's built-in DVFS behaviour through a PCV hijack mechanism, apply custom voltage offsets, and pair that with a software CPU governor that scales frequency on demand rather than always running at a fixed target. Together these features let you shape the performance-efficiency curve of your overclock without committing to a single static voltage.
+
+## DVFS Mode
+
+The `dvfs_mode` config key selects how Horizon OC interacts with the Tegra PCV (Power Control and Voltage) service. The corresponding enum in `board.h` is:
+
+```cpp
+enum {
+    DVFSMode_Disabled = 0,
+    DVFSMode_Hijack,  // PCV hijack DVFS
+    DVFSMode_EnumMax,
+};
+```
+
+<ParamField path="dvfs_mode" type="uint32 (DVFSMode enum)" default="1 (DVFSMode_Hijack)">
+  Controls the DVFS override strategy.
+
+  - `0` — `DVFSMode_Disabled`: Horizon OC does not override DVFS. The stock firmware voltage tables are used as-is, ignoring any `dvfs_offset` setting.
+  - `1` — `DVFSMode_Hijack`: Horizon OC intercepts PCV DVFS calls and applies its own voltage/frequency tables, including any configured offset. This is the default and is required for undervolt or custom voltage curve operation.
+</ParamField>
+
+<ParamField path="dvfs_offset" type="int32 (mV)" default="0">
+  A signed voltage offset in millivolts added to every DVFS entry in the active table. Negative values undervolt the component; positive values add voltage margin. Applied only when `dvfs_mode` is `DVFSMode_Hijack`.
+</ParamField>
+
+<Note>
+DVFS interacts directly with the CPU, GPU, and SOC voltage rails. Applying too large a negative offset can cause the SoC to brown out under transient loads even if it appears stable at idle. Always validate undervolts under sustained workloads (e.g. the Benchmark Toolbox) before treating a setting as stable.
+</Note>
+
+## GPU Scheduling
+
+GPU scheduling controls whether Horizon OC overrides the kernel-level GPU job scheduler, which affects how GPU workloads are dispatched and can influence GPU clock responsiveness.
+
+The governing enum from `board.h`:
+
+```cpp
+typedef enum {
+    GpuSchedulingMode_DoNotOverride = 0,
+    GpuSchedulingMode_Enabled,
+    GpuSchedulingMode_Disabled,
+    GpuSchedulingMode_EnumMax,
+} GpuSchedulingMode;
+```
+
+<ParamField path="gpu_scheduling" type="uint32 (GpuSchedulingMode enum)" default="0 (DoNotOverride)">
+  Selects the GPU scheduling override mode.
+
+  - `0` — `DoNotOverride`: leave the system GPU scheduler as-is.
+  - `1` — `GpuSchedulingMode_Enabled`: enable GPU scheduling override.
+  - `2` — `GpuSchedulingMode_Disabled`: explicitly disable GPU scheduling override.
+</ParamField>
+
+The method used to apply the GPU scheduling override is controlled by a separate key:
+
+```cpp
+typedef enum {
+    GpuSchedulingOverrideMethod_Ini = 0,
+    GpuSchedulingOverrideMethod_NvService,
+    GpuSchedulingOverrideMethod_EnumMax,
+} GpuSchedulingOverrideMethod;
+```
+
+<ParamField path="gpu_sched_method" type="uint32 (GpuSchedulingOverrideMethod enum)" default="0 (Ini)">
+  Selects how the GPU scheduling override is applied.
+
+  - `0` — `GpuSchedulingOverrideMethod_Ini`: the override is read from the INI configuration file at boot.
+  - `1` — `GpuSchedulingOverrideMethod_NvService`: the override is applied via the NvService interface at runtime.
+</ParamField>
+
+## CPU Governor
+
+The CPU governor dynamically scales the CPU frequency based on current load, rather than running at a fixed overclock target at all times. This reduces power consumption and heat generation when the system is idle or lightly loaded, while still allowing full clock speed to be reached when a game demands it.
+
+The `ComponentGovernorState` enum from `board.h` describes the per-component governor states:
+
+```cpp
+typedef enum {
+    ComponentGovernor_DoNotOverride = 0,
+    ComponentGovernor_Disabled      = 1,
+    ComponentGovernor_Enabled       = 2,
+    ComponentGovernor_EnumMax,
+} ComponentGovernorState;
+```
+
+Governor state is packed into a single `u32` that encodes CPU, GPU, and VRR states in separate byte fields via `GovernorStatePack()`. The governor settings section in the overlay allows toggling each component independently.
+
+<ParamField path="cpu_gov_min_freq" type="uint64 (Hz)" default="612000000 (612 MHz)">
+  The minimum frequency floor the CPU governor is allowed to set when scaling down under light load. Specified in Hz. The default of `612,000,000` (612 MHz) matches the lowest Mariko CPU P-state.
+
+  Increasing this value raises the minimum idle frequency, which improves input-latency responsiveness at the cost of higher idle power. Decreasing it (if permitted by your platform) deepens power savings during menu navigation and idle screens.
+</ParamField>
+
+<Tip>
+If you notice sluggishness when returning from sleep or when the system wakes from a background state, try raising `cpu_gov_min_freq` to `816000000` (816 MHz) as a first step. This keeps the CPU at a moderate clock even when the governor scales down, eliminating the ramp-up latency.
+</Tip>
+
+## Live CPU Undervolt
+
+<ParamField path="live_cpu_uv" type="bool (0 or 1)" default="0">
+  When set to `1`, applies the configured CPU undervolt values to the voltage regulators immediately, without requiring a reboot. This allows iterative testing of undervolt settings during a session.
+
+  Set to `0` to revert to applying undervolts only at boot time (the safe default). Note that toggling this off mid-session does not automatically restore stock voltages — a reboot is required to cleanly reset the voltage state.
+</ParamField>
+
+## Auto High-RAM CPU Overclock
+
+The auto high-RAM CPU OC feature automatically boosts the CPU clock when the EMC (RAM) frequency crosses a configured threshold. This is useful because high RAM frequencies benefit from a CPU clock high enough to keep the memory bus fed — pairing, for example, 2133 MT/s RAM with a CPU clock floor prevents the CPU from becoming a bottleneck during memory-intensive workloads.
+
+<ParamField path="auto_high_ram_cpu_oc" type="bool (0 or 1)" default="1">
+  Enables or disables automatic CPU overclock when RAM frequency exceeds `auto_ram_cpu_ram_oc_threshold`. Enabled by default.
+</ParamField>
+
+<ParamField path="auto_ram_cpu_cpu_oc_freq" type="uint64 (Hz)" default="1683000 (1683 MHz)">
+  The CPU frequency target applied automatically when the RAM OC threshold is crossed. The default of `1,683,000` Hz corresponds to 1683 MHz — a common high-performance Mariko CPU operating point.
+
+  <Note>
+  Note that this value is stored in kHz units in the config file: the default `1683000` means 1683 MHz. Confirm the unit convention in your config file version before editing.
+  </Note>
+</ParamField>
+
+<ParamField path="auto_ram_cpu_ram_oc_threshold" type="uint64 (Hz)" default="2666000 (2666 MHz)">
+  The RAM frequency threshold (in Hz) above which the auto CPU OC is activated. The default of `2,666,000` Hz targets the 2666 MT/s operating point. When the EMC clock is set at or above this value, `auto_ram_cpu_cpu_oc_freq` is enforced as the minimum CPU clock.
+
+  <Note>
+  Like the CPU OC frequency, this threshold is expressed in the same unit convention. The default `2666000` corresponds to 2666 MHz (i.e., 2666 MT/s RAM).
+  </Note>
+</ParamField>
+
+<Tip>
+Disable `auto_high_ram_cpu_oc` if you are running a custom per-profile CPU clock configuration and do not want the auto feature to interfere with your manually set frequencies. The feature is most useful when using a single global RAM OC setting across all profiles.
+</Tip>

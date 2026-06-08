@@ -1,0 +1,317 @@
+---
+title: "Configure the Horizon OC Monitor Overlay"
+sidebarTitle: "Configuration"
+description: "Complete config.ini reference for the Horizon OC Monitor overlay, covering all sections: status-monitor, full, mini, micro, fps-counter, fps-graph, and game_resolutions."
+---
+
+The Monitor overlay reads its settings from a single INI file on the SD card. By default the file ships as a template and must be renamed before the overlay will detect it. Every section and key in the file is optional — if a key is absent the overlay falls back to the documented default value. The sections below cover every configurable option with allowed values, defaults, and usage notes.
+
+## File Location
+
+```bash
+sdmc:/config/status-monitor/config.ini
+```
+
+The file ships as `config.ini.template`. Rename it to `config.ini` to activate it.
+
+## Color Format
+
+All color values use **RGBA4444** format: a four-character hex string where each character represents one channel (red, green, blue, alpha) on a 0–F scale.
+
+```
+#RRGGBBAA  →  #FFFF  =  white, fully opaque
+             #0000  =  transparent black
+             #1117  =  near-black with slight transparency (default background)
+             #FCCF  =  warm white, fully opaque (default micro category color)
+```
+
+One hex digit per channel means 16 levels of intensity per channel (0 = off, F = full).
+
+---
+
+<Accordion title="[status-monitor] — Global overlay settings">
+
+These keys apply across all modes.
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `key_combo` | `L+DDOWN+RSTICK` | Up to 4 buttons joined with `+` | Button combination to exit Full, Mini, Micro, FPS Graph, and FPS Counter modes. Buttons: `A`, `B`, `X`, `Y`, `L`, `R`, `ZL`, `ZR`, `PLUS`, `MINUS`, `DUP`, `DDOWN`, `DLEFT`, `DRIGHT`, `SL`, `SR`, `LSTICK`, `RSTICK`, `UP`, `DOWN`, `LEFT`, `RIGHT`. Any buttons beyond the 4th are ignored. |
+| `battery_avg_iir_filter` | `false` | `true`, `false` | Read voltage and current averages directly from the fuel gauge's IIR filter. Extends the voltage averaging window to ~45 s and current to ~11.25 s for smoother Battery mode readings. |
+| `battery_time_left_refreshrate` | `60` | `1` – `60` | Seconds between Battery Remaining Time updates. |
+| `average_gpu_load` | `false` | `true`, `false` | Average the last 5 GPU load samples. GPU load is by design sampled only over the last 1/60 s; averaging gives more stable readings at the cost of slightly higher CPU Core #3 usage (2–4 percentage points depending on CPU clock). |
+| `font_cache` | `true` | `true`, `false` | Cache rendered font glyphs for better overlay performance. The cache is flushed when switching between modes. |
+
+```ini
+[status-monitor]
+key_combo=L+DDOWN+RSTICK
+battery_avg_iir_filter=false
+battery_time_left_refreshrate=60
+average_gpu_load=false
+font_cache=true
+```
+
+</Accordion>
+
+<Accordion title="[full] — Full mode settings">
+
+Controls layout and which optional fields appear in Full mode.
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `refresh_rate` | `1` | `1` – `60` | Updates per second. Higher values increase CPU Core #3 load; staying at `1` is recommended. |
+| `layer_width_align` | `left` | `left`, `right` | Horizontal screen edge to anchor the overlay to. |
+| `show_real_freqs` | `true` | `true`, `false` | Show measured CPU, GPU, and RAM frequencies. Requires sys-clk 2.0.0_rc4+. |
+| `show_deltas` | `true` | `true`, `false` | Show the difference between target and real frequencies. Only visible when at least one of `show_real_freqs` or `show_target_freqs` is `true`. Requires sys-clk 2.0.0_rc4+. |
+| `show_target_freqs` | `true` | `true`, `false` | Show target (requested) frequencies for CPU, GPU, and RAM. |
+| `show_fps` | `true` | `true`, `false` | Show FPS and PFPS fields. Requires SaltyNX. |
+| `show_res` | `true` | `true`, `false` | Show the two best internal resolution candidates. Requires SaltyNX; only active when the game uses NVN. |
+| `show_read_speed` | `true` | `true`, `false` | Show game asset read speed per second. Requires SaltyNX. |
+
+```ini
+[full]
+refresh_rate=1
+layer_width_align=left
+show_real_freqs=true
+show_deltas=true
+show_target_freqs=true
+show_fps=true
+show_res=true
+show_read_speed=true
+```
+
+</Accordion>
+
+<Accordion title="[mini] — Mini mode settings">
+
+Controls the compact single-line overlay's layout, font sizes, visible categories, and colors.
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `refresh_rate` | `1` | `1` – `60` | Updates per second. |
+| `layer_width_align` | `left` | `left`, `center`, `right` | Horizontal anchor position. |
+| `layer_height_align` | `top` | `top`, `center`, `bottom` | Vertical anchor position. |
+| `handheld_font_size` | `15` | `8` – `22` | Font size in handheld mode (pt). |
+| `docked_font_size` | `15` | `8` – `22` | Font size in docked mode (pt). |
+| `real_freqs` | `false` | `true`, `false` | Show measured frequencies instead of target frequencies for CPU, GPU, and RAM. Requires sys-clk 2.0.0_rc4+. |
+| `show` | `CPU+GPU+RAM+TEMP+FAN+DRAW+FPS+RES+READ` | Any combination of `CPU`, `GPU`, `RAM`, `TEMP`, `FAN`, `DRAW`, `FPS`, `RES`, `READ` joined with `+` | Which stat categories to render. Order in the value string sets display order. |
+| `replace_MB_with_RAM_load` | `true` | `true`, `false` | Replace total RAM usage (MB) with RAM load percentage in the RAM category. Requires sys-clk 2.0.0_rc4+. |
+| `background_color` | `#1117` | `#0000` – `#FFFF` | Background fill color in RGBA4444. |
+| `cat_color` | `#FFFF` | `#0000` – `#FFFF` | Category label color (left side) in RGBA4444. |
+| `text_color` | `#FFFF` | `#0000` – `#FFFF` | Stats value color (right side) in RGBA4444. |
+
+```ini
+[mini]
+refresh_rate=1
+layer_width_align=left
+layer_height_align=top
+handheld_font_size=15
+docked_font_size=15
+real_freqs=false
+show=CPU+GPU+RAM+TEMP+FAN+DRAW+FPS+RES+READ
+replace_MB_with_RAM_load=true
+background_color=#1117
+cat_color=#FFFF
+text_color=#FFFF
+```
+
+</Accordion>
+
+<Accordion title="[micro] — Micro mode settings">
+
+Controls the ultra-compact single-line overlay. Micro mode only supports top/bottom vertical alignment (no center).
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `refresh_rate` | `1` | `1` – `60` | Updates per second. |
+| `layer_height_align` | `top` | `top`, `bottom` | Vertical anchor position. |
+| `handheld_font_size` | `18` | `8` – `18` | Font size in handheld mode (pt). |
+| `docked_font_size` | `18` | `8` – `18` | Font size in docked mode (pt). |
+| `text_align` | `center` | `left`, `center`, `right` | Text alignment within the overlay layer. |
+| `real_freqs` | `false` | `true`, `false` | Show measured frequencies. When enabled, the `@` separator becomes a dynamic throttle indicator (`△` / `▽` / `≠`). Requires sys-clk 2.0.0_rc4+. |
+| `show` | `CPU+GPU+RAM+BRD+FAN+FPS` | Any combination of `CPU`, `GPU`, `RAM`, `BRD`, `FAN`, `FPS` joined with `+` | Which categories to render. |
+| `replace_GB_with_RAM_load` | `true` | `true`, `false` | Replace RAM used/available (GB) with RAM load percentage. Requires sys-clk 2.0.0_rc4+. |
+| `background_color` | `#1117` | `#0000` – `#FFFF` | Background fill color in RGBA4444. |
+| `cat_color` | `#FCCF` | `#0000` – `#FFFF` | Category label color in RGBA4444. |
+| `text_color` | `#FFFF` | `#0000` – `#FFFF` | Stats value color in RGBA4444. |
+
+```ini
+[micro]
+refresh_rate=1
+layer_height_align=top
+handheld_font_size=18
+docked_font_size=18
+text_align=center
+real_freqs=false
+show=CPU+GPU+RAM+BRD+FAN+FPS
+replace_GB_with_RAM_load=true
+background_color=#1117
+cat_color=#FCCF
+text_color=#FFFF
+```
+
+</Accordion>
+
+<Accordion title="[fps-counter] — FPS Counter mode settings">
+
+Controls the large FPS digit display. Font sizes up to 150 pt make this suitable as a prominent corner indicator.
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `layer_width_align` | `left` | `left`, `center`, `right` | Horizontal anchor position. |
+| `layer_height_align` | `top` | `top`, `center`, `bottom` | Vertical anchor position. |
+| `handheld_font_size` | `40` | `8` – `150` | Font size in handheld mode (pt). |
+| `docked_font_size` | `40` | `8` – `150` | Font size in docked mode (pt). |
+| `background_color` | `#1117` | `#0000` – `#FFFF` | Background fill color in RGBA4444. |
+| `text_color` | `#FFFF` | `#0000` – `#FFFF` | FPS number color in RGBA4444. |
+
+```ini
+[fps-counter]
+layer_width_align=left
+layer_height_align=top
+handheld_font_size=40
+docked_font_size=40
+background_color=#1117
+text_color=#FFFF
+```
+
+</Accordion>
+
+<Accordion title="[fps-graph] — FPS Graph mode settings">
+
+Controls graph colors. Position keys (`layer_width_align`, `layer_height_align`) are present but documented as part of general layout — see `[fps-counter]` for their allowed values.
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `layer_width_align` | `left` | `left`, `center`, `right` | Horizontal anchor position. |
+| `layer_height_align` | `top` | `top`, `center`, `bottom` | Vertical anchor position. |
+| `max_fps_text_color` | `#FFFF` | `#0000` – `#FFFF` | Color of the "60" label at the top of the graph in RGBA4444. |
+| `min_fps_text_color` | `#FFFF` | `#0000` – `#FFFF` | Color of the "0" label at the bottom of the graph in RGBA4444. |
+| `background_color` | `#1117` | `#0000` – `#FFFF` | Background fill color in RGBA4444. |
+| `fps_counter_color` | `#4444` | `#0000` – `#FFFF` | Color of the average FPS value rendered behind the graph in RGBA4444. |
+| `border_color` | `#F77F` | `#0000` – `#FFFF` | Color of the graph border rectangle in RGBA4444. |
+| `dashed_line_color` | `#8888` | `#0000` – `#FFFF` | Color of the dashed midpoint reference line in RGBA4444. |
+| `main_line_color` | `#FFFF` | `#0000` – `#FFFF` | Color of the primary FPS line in RGBA4444. |
+| `rounded_line_color` | `#F0FF` | `#0000` – `#FFFF` | Color of the FPS line when the value is divisible by 10 in RGBA4444. |
+| `perfect_line_color` | `#0C0F` | `#0000` – `#FFFF` | Color of the FPS line when the value is divisible by 30 (and at display refresh rate or half) in RGBA4444. |
+
+```ini
+[fps-graph]
+layer_width_align=left
+layer_height_align=top
+max_fps_text_color=#FFFF
+min_fps_text_color=#FFFF
+background_color=#1117
+fps_counter_color=#4444
+border_color=#F77F
+dashed_line_color=#8888
+main_line_color=#FFFF
+rounded_line_color=#F0FF
+perfect_line_color=#0C0F
+```
+
+</Accordion>
+
+<Accordion title="[game_resolutions] — Game Resolutions mode settings">
+
+Controls the refresh rate, position, and colors for Game Resolutions mode. Note the higher default `refresh_rate` of 10 (vs. 1 in other modes) because resolution data is polled at the frame level.
+
+| Key | Default | Allowed Values | Description |
+|---|---|---|---|
+| `refresh_rate` | `10` | `1` – `60` | Updates per second. Default is 10 to keep resolution data responsive. |
+| `layer_width_align` | `left` | `left`, `center`, `right` | Horizontal anchor position. |
+| `layer_height_align` | `top` | `top`, `center`, `bottom` | Vertical anchor position. |
+| `background_color` | `#1117` | `#0000` – `#FFFF` | Background fill color in RGBA4444. |
+| `cat_color` | `#FFFF` | `#0000` – `#FFFF` | Category label color (Depth / Viewport headers) in RGBA4444. |
+| `text_color` | `#FFFF` | `#0000` – `#FFFF` | Resolution value color in RGBA4444. |
+
+```ini
+[game_resolutions]
+refresh_rate=10
+layer_width_align=left
+layer_height_align=top
+background_color=#1117
+cat_color=#FFFF
+text_color=#FFFF
+```
+
+</Accordion>
+
+---
+
+## Complete Example config.ini
+
+The snippet below shows every key at its default value. Start here and adjust the sections relevant to the modes you use.
+
+```ini
+[status-monitor]
+key_combo=L+DDOWN+RSTICK
+battery_avg_iir_filter=false
+battery_time_left_refreshrate=60
+average_gpu_load=false
+font_cache=true
+
+[full]
+refresh_rate=1
+layer_width_align=left
+show_real_freqs=true
+show_deltas=true
+show_target_freqs=true
+show_fps=true
+show_res=true
+show_read_speed=true
+
+[mini]
+refresh_rate=1
+layer_width_align=left
+layer_height_align=top
+handheld_font_size=15
+docked_font_size=15
+real_freqs=false
+show=CPU+GPU+RAM+TEMP+FAN+DRAW+FPS+RES+READ
+replace_MB_with_RAM_load=true
+background_color=#1117
+cat_color=#FFFF
+text_color=#FFFF
+
+[micro]
+refresh_rate=1
+layer_height_align=top
+handheld_font_size=18
+docked_font_size=18
+text_align=center
+real_freqs=false
+show=CPU+GPU+RAM+BRD+FAN+FPS
+replace_GB_with_RAM_load=true
+background_color=#1117
+cat_color=#FCCF
+text_color=#FFFF
+
+[fps-counter]
+layer_width_align=left
+layer_height_align=top
+handheld_font_size=40
+docked_font_size=40
+background_color=#1117
+text_color=#FFFF
+
+[fps-graph]
+layer_width_align=left
+layer_height_align=top
+max_fps_text_color=#FFFF
+min_fps_text_color=#FFFF
+background_color=#1117
+fps_counter_color=#4444
+border_color=#F77F
+dashed_line_color=#8888
+main_line_color=#FFFF
+rounded_line_color=#F0FF
+perfect_line_color=#0C0F
+
+[game_resolutions]
+refresh_rate=10
+layer_width_align=left
+layer_height_align=top
+background_color=#1117
+cat_color=#FFFF
+text_color=#FFFF
+```

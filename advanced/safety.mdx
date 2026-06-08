@@ -1,0 +1,118 @@
+---
+title: "Safety Settings and Thermal Protection in Horizon OC"
+sidebarTitle: "Safety"
+description: "Configure thermal throttling, battery charge current limits, and display voltage in Horizon OC to protect your Switch hardware while overclocking."
+---
+
+Overclocking a Nintendo Switch pushes the Tegra SoC, LPDDR4X memory, and power delivery system beyond their factory-validated operating points. Without appropriate safeguards, sustained high loads can drive SoC temperatures into ranges where the hardware throttles aggressively or shuts down, and unstable RAM timings can silently corrupt data — including the NAND filesystem. Horizon OC provides a set of configurable safety mechanisms: thermal throttling with per-sensor thresholds, battery charge current limits to prevent thermal runaway during handheld play, display voltage controls, and a set of recommended pre-overclock procedures. Understanding and correctly configuring these protections is as important as tuning the clock frequencies themselves.
+
+<Warning>
+Unstable memory overclocks are a leading cause of NAND corruption on Switch. A corrupt NAND can brick the console and is not recoverable without hardware intervention. Always maintain a full NAND backup before enabling any overclock, and never run an untested timing preset on your primary NAND.
+</Warning>
+
+## Thermal Throttling
+
+Horizon OC monitors multiple temperature sensors on the SoC and board and can automatically reduce clock speeds when temperatures exceed a configurable threshold. The following sensors are tracked (from the `HocClkThermalSensor` enum in `board.h`):
+
+| Sensor | Description |
+|---|---|
+| `SOC` | SoC die temperature (millicelsius) |
+| `PCB` | Printed circuit board temperature (millicelsius) |
+| `Skin` | Estimated surface/skin temperature (millicelsius) |
+| `Battery` | Battery pack temperature (millicelsius) |
+| `CPU` | CPU cluster temperature (millicelsius) |
+| `GPU` | GPU cluster temperature (millicelsius) |
+| `MEM` | Memory temperature; returns PLLX sensor value on Mariko (millicelsius) |
+
+In addition to the user-configurable threshold below, the following hard limits apply regardless of settings:
+
+- **T_SOC or T_PCB ≥ 84 °C** → immediate system sleep (any mode)
+- **T_Skin ≥ 63 °C** → immediate system sleep (any mode)
+- **T_Skin 58–63 °C** → timer-based sleep (handheld mode only)
+
+<ParamField path="thermal_throttle" type="bool (0 or 1)" default="1 (enabled)">
+  Enables or disables Horizon OC's thermal throttle mechanism. When enabled (`1`), the sysmodule monitors the sensors listed above and reduces CPU, GPU, and EMC clocks when temperatures approach the configured threshold. Setting this to `0` disables all software thermal throttling from Horizon OC — the Nintendo firmware's own thermal protection is unaffected but provides less granular control.
+
+  <Warning>
+  Disabling thermal throttle is not recommended for sustained gaming sessions or benchmarks. The Switch chassis has limited thermal headroom, particularly in handheld mode. Running without a throttle increases the risk of reaching the hard sleep thresholds above.
+  </Warning>
+</ParamField>
+
+<ParamField path="thermal_throttle_threshold" type="uint64 (°C)" default="70">
+  The SoC temperature in degrees Celsius at which the thermal throttle activates. Default is `70` °C. The valid range requires a value greater than zero.
+
+  Lower values provide an earlier warning margin at the cost of more frequent throttling during demanding workloads. A value in the 70–80 °C range is typical for everyday overclocking; competitive benchmarkers sometimes raise it to 80–83 °C, accepting the reduced stability margin.
+</ParamField>
+
+## Battery Protection
+
+Charging the Switch battery while running at elevated clocks increases both power throughput and heat generation. Limiting the charge current reduces the thermal load from the battery charger and prolongs battery cycle life.
+
+<ParamField path="bat_charge_current" type="uint64 (mA)" default="0 (system default)">
+  Caps the battery charge current in milliamps. Valid range: **1024–3072 mA**, or `0` to disable the cap and use the system default. Setting a lower value (e.g. 1024–1536 mA) is recommended during heavy overclocked sessions in handheld-charging mode to reduce total system heat output.
+</ParamField>
+
+<ParamField path="in_curr_limit" type="uint64 (mA)" default="0 (system default)">
+  Caps the input current drawn from the charger in milliamps. Valid range: **100–3000 mA**, or `0` to disable. This controls how much current the BQ24193 charger IC is permitted to draw from the USB-C port. Reducing it can prevent USB chargers from being overloaded when running high-power OC profiles, but may result in the battery draining during play if set too low for the workload.
+</ParamField>
+
+<Tip>
+For long handheld overclocked sessions, a `bat_charge_current` of around 1024–1500 mA combined with an `in_curr_limit` of 2000 mA is a good starting point. This keeps the charger feeding the system while limiting the battery's own charging thermal contribution.
+</Tip>
+
+## Display Voltage and Refresh Rate
+
+<ParamField path="display_voltage" type="uint64 (mV)" default="1200">
+  Sets the display rail voltage in millivolts. Valid range: **800–1325 mV**. The default of `1200` mV matches the stock display operating voltage on most Switch panels. Reducing this can lower overall system power draw slightly; increasing it may help marginal panels that show flickering at stock voltage.
+
+  <Warning>
+  Do not set `display_voltage` below 800 mV or above 1325 mV. Values outside this range are rejected by the config validator. Extreme values risk permanent display damage.
+  </Warning>
+</ParamField>
+
+<ParamField path="drr_changing" type="bool (0 or 1)" default="0">
+  Enables Dynamic Refresh Rate (DRR) changing. When enabled, Horizon OC can modify the display refresh rate at runtime. Maps to `HocClkConfigValue_OverwriteRefreshRate` internally.
+</ParamField>
+
+<ParamField path="drr_max_clock" type="uint64 (Hz)" default="60">
+  The maximum display refresh rate in handheld mode when DRR is enabled. Default is `60` Hz. Increasing this beyond 60 Hz requires hardware support and is only relevant on modded or replacement panels that support higher refresh rates.
+</ParamField>
+
+## Pre-Overclock Safety Checklist
+
+Before enabling any overclocking settings for the first time, complete the following steps to ensure you can recover from any instability:
+
+<Steps>
+  <Step title="Back up your NAND">
+    Use Hekate to create a full NAND backup (RAW GPP + boot0/boot1) and store it on a separate SD card or PC. This is your only recovery path if the system is bricked by a bad timing or voltage setting. Also back up PROINFO if you intend to modify any fuse or calibration data.
+  </Step>
+  <Step title="Set up or verify your emuMMC">
+    All overclocking should be done from an emuMMC partition, not the sysMMC. If you do not have an emuMMC, create one in Hekate before proceeding. A corrupted emuMMC can be restored from backup without touching the sysMMMC, preserving your ban-safe NAND.
+  </Step>
+  <Step title="Back up your SD card">
+    Copy the contents of your microSD card to your PC. Config file errors can cause boot loops; having a backup lets you restore a working config without re-flashing.
+  </Step>
+  <Step title="Start with conservative clock targets">
+    Begin with small frequency increases — for example, 1600 MT/s RAM before 1866, and JEDEC timings before any tightening. Confirm stability at each step before increasing further.
+  </Step>
+  <Step title="Run stability tests with the Benchmark Toolbox">
+    Use the included FurMark-based Benchmark Toolbox to stress the CPU, GPU, and memory simultaneously. A minimum 15–30 minute run at target clocks with no crashes or graphical artifacts is a baseline stability indicator.
+  </Step>
+  <Step title="Monitor temperatures in real time">
+    Open the Horizon OC Monitor overlay during stress testing and watch the SOC, CPU, GPU, and MEM temperature readings. If any sensor approaches 80 °C in handheld mode, consider lowering clocks or adjusting the `thermal_throttle_threshold`.
+  </Step>
+</Steps>
+
+## Supported Versions and Security
+
+Horizon OC maintains the following support policy:
+
+| Version | Supported |
+|---|---|
+| 2.x.x | ✅ Supported |
+| 1.x.x | ❌ Not supported |
+| 0.x.x | ❌ Not supported |
+
+Only the current 2.x.x release branch receives bug fixes and security updates. If you are running an older version, upgrade before reporting stability issues.
+
+To report a vulnerability or safety-critical bug, contact **Souldbminer** or **Lightos_** directly on Discord (`souldbminer`, `lightos_`).

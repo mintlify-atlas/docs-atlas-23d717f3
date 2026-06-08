@@ -1,0 +1,151 @@
+---
+title: "Clock Profiles: Per-Game and Global Overrides"
+sidebarTitle: "Profiles"
+description: "Configure per-game application profiles and a global profile in Horizon OC to automatically apply the right CPU, GPU, and RAM clocks for each context."
+---
+
+Horizon OC uses a profile system to let you assign different CPU, GPU, and RAM frequencies to each game independently — and to set a global baseline for everything else. Profiles are stored on the SD card and applied automatically by the `hoc-clk` sysmodule whenever a matching context is detected.
+
+## Profile Types
+
+There are three ways to control clocks in Horizon OC. They differ in scope, persistence, and priority.
+
+| Type | Title Scope | Profile Slots | Persists Across Reboot | Priority |
+|---|---|---|---|---|
+| **App Profile** | One title (by title ID) | Handheld, USB Charger, PD Charger, Docked | ✅ Yes | Highest |
+| **Global Profile** | All titles (fallback) | Handheld, USB Charger, PD Charger, Docked | ✅ Yes | Medium |
+| **Temporary Override** | System-wide, immediate | Single override frequency per module | ❌ Resets on boot | Applied on top |
+
+<Note>
+The **Temporary Override** is layered on top of whatever profile is active. It overrides the frequency currently resolved from the profile chain. On the next boot, it is discarded and profile frequencies resume.
+</Note>
+
+## Profile Slots
+
+Each App Profile and the Global Profile contain separate frequency entries for each of the five `HocClkProfile` slots defined in `board.h`. This means you can set different clocks depending on how the console is being used at that moment.
+
+| Enum Value | Internal Key | Display Name | Notes |
+|---|---|---|---|
+| `HocClkProfile_Handheld` | `handheld` | Handheld | Battery-only, undocked |
+| `HocClkProfile_HandheldCharging` | `handheld_charging` | Charging | **Not a real profile** — marker only; not user-configurable |
+| `HocClkProfile_HandheldChargingUSB` | `handheld_charging_usb` | USB Charger | Charging via a standard USB-A/C charger |
+| `HocClkProfile_HandheldChargingOfficial` | `handheld_charging_official` | PD Charger | Charging via a USB Power Delivery (PD) charger |
+| `HocClkProfile_Docked` | `docked` | Docked | Console in the dock (not shown on Switch Lite) |
+
+<Note>
+`HocClkProfile_HandheldCharging` exists in the enum as a boundary marker between handheld and USB-charger slots. It is not presented in the overlay UI and cannot be assigned frequencies directly.
+</Note>
+
+## Configurable Modules
+
+Within each profile slot you can set a target frequency for the following modules, as defined by the `HocClkModule` enum in `board.h`:
+
+| Module | Enum | Description |
+|---|---|---|
+| `CPU` | `HocClkModule_CPU` | Cortex-A57 cluster clock |
+| `GPU` | `HocClkModule_GPU` | Maxwell/Ampere GPU clock |
+| `MEM` | `HocClkModule_MEM` | EMC/LPDDR4 memory clock |
+| `Governor` | `HocClkModule_Governor` | Per-profile governor state override |
+
+`HocClkModule_Display` exists in the enum but is managed separately through Display Settings and is not directly set per profile in the App/Global Profile screens.
+
+Setting a frequency to **0** (or leaving it as **Default**) tells `hoc-clk` not to override that module in that slot, falling back down the priority chain.
+
+## Setting an App Profile
+
+An App Profile ties a set of per-slot frequencies to a specific title's 64-bit title ID. The profile is created (or updated) while that game is running in the foreground.
+
+<Tabs>
+  <Tab title="App Profile">
+    <Steps>
+      <Step title="Launch the game">
+        Start the game you want to configure. The `hoc-clk` sysmodule detects the foreground title ID automatically.
+      </Step>
+      <Step title="Open the overlay">
+        Hold your Ultrahand combo (default **L + R + DPad Down**) and select **Horizon OC**.
+      </Step>
+      <Step title="Select Edit App Profile">
+        Press **A** on **Edit App Profile**. The profile editor opens showing that game's title ID in the header.
+      </Step>
+      <Step title="Choose a profile slot">
+        Scroll to the slot you want to configure (e.g. **Docked** or **Handheld**) and select it.
+      </Step>
+      <Step title="Set frequencies for each module">
+        For each module (CPU, GPU, MEM, Governor), press **A** to open the frequency picker. Scroll to the target frequency and confirm. A value of **Default** removes the override for that module.
+      </Step>
+      <Step title="Changes are saved automatically">
+        Frequency selections are written to disk immediately. No separate save step is required for App/Global Profile changes.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Global Profile">
+    <Steps>
+      <Step title="Open the overlay">
+        Hold your Ultrahand combo and select **Horizon OC**. No game needs to be running.
+      </Step>
+      <Step title="Select Edit Global Profile">
+        Press **A** on **Edit Global Profile**. Internally this opens the same profile editor using the reserved title ID `0xA111111111111111` (`HOCCLK_GLOBAL_PROFILE_TID`).
+      </Step>
+      <Step title="Choose a profile slot">
+        Select the power state you want to configure — **Handheld**, **USB Charger**, **PD Charger**, or **Docked**.
+      </Step>
+      <Step title="Set frequencies for each module">
+        Use the frequency picker for CPU, GPU, MEM, and Governor. Set any module to **Default** to leave it at the system stock value for that slot.
+      </Step>
+      <Step title="Changes are saved automatically">
+        Selections are written to disk immediately.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Profile Priority
+
+When `hoc-clk` resolves the frequency to apply for a given module, it walks this chain:
+
+1. **Temporary Override** — if set for the module, this frequency is used unconditionally.
+2. **App Profile** — if the running title has an entry for the current slot and module, it is used.
+3. **Global Profile** — if the Global Profile has an entry for the current slot and module, it is used.
+4. **System Default** — Nintendo's stock frequencies for the current power state.
+
+<Note>
+All four steps are evaluated per-module independently. You can set only a CPU frequency in an App Profile and let the GPU and MEM fall through to the Global Profile or system default. Setting a value to **Default** (0) explicitly skips that level for that module.
+</Note>
+
+## Example: Game-Specific Docked vs. Handheld Tuning
+
+The following illustrates what a per-game profile might look like for a demanding title where you want maximum performance when docked but conservative clocks on battery:
+
+```
+Title: 0x0100F2C0115B6000  (example title ID)
+
+  Handheld slot:
+    CPU  →  1428 MHz
+    GPU  →   460 MHz
+    MEM  →  1600 MHz
+
+  Docked slot:
+    CPU  →  1785 MHz
+    GPU  →   921 MHz
+    MEM  →  2133 MHz
+```
+
+And the Global Profile fallback for everything else:
+
+```
+  Handheld slot:
+    CPU  →  Default
+    GPU  →  Default
+    MEM  →  Default
+
+  Docked slot:
+    CPU  →  1581 MHz
+    GPU  →   768 MHz
+    MEM  →  1862 MHz
+```
+
+For a game not listed in any App Profile, `hoc-clk` applies the Global Profile values above. For the example title, the game-specific frequencies are used instead.
+
+## Profile Storage
+
+Profiles are written to the SD card under `config/horizon-oc/`. Each title's profile is stored by its title ID. The Global Profile is stored under the reserved title ID `0xA111111111111111`. These files are plain INI-format text and can be backed up or edited manually, though the overlay is the recommended way to change them.

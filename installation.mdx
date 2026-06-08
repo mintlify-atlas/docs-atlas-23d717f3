@@ -1,0 +1,121 @@
+---
+title: "Install Horizon OC on Your Nintendo Switch"
+sidebarTitle: "Installation"
+description: "Step-by-step guide to installing the Horizon OC KIP, sysmodule, and overlay on a Nintendo Switch running Atmosphere CFW with Hekate or fusee."
+---
+
+Installing Horizon OC requires placing three things on your SD card — the KIP patch, the `hoc-clk` sysmodule, and the Ultrahand overlay package — and then telling your bootloader to load the KIP at startup. The process takes about five minutes and does not require compiling anything from source.
+
+<Warning>
+  **Back up your console before proceeding.**
+
+  Overclocking RAM can cause NAND or SD card corruption. Before you install Horizon OC, create a full backup of your **NAND, PROINFO, emuMMC, and SD card**. Use Hekate's built-in backup tools or an equivalent method. Do not skip this step.
+</Warning>
+
+## Prerequisites
+
+Before you begin, confirm you have all of the following:
+
+- **Atmosphere CFW (latest release)** — installed and booting correctly. Download from [github.com/Atmosphere-NX/Atmosphere](https://github.com/Atmosphere-NX/Atmosphere/releases).
+- **Ultrahand Overlay (latest release)** — the overlay framework that hosts the Horizon OC UI. Download from [github.com/ppkantorski/Ultrahand-Overlay](https://github.com/ppkantorski/Ultrahand-Overlay/releases).
+- **A complete NAND + SD backup** — see the warning above.
+- **A computer** with an SD card reader to copy files.
+
+## Installation
+
+<Steps>
+  <Step title="Download the Horizon OC package">
+    Go to the [Horizon OC releases page](https://github.com/Horizon-OC/Horizon-OC/releases) and download the latest release archive (`.zip`).
+  </Step>
+
+  <Step title="Extract to the root of your SD card">
+    Extract the contents of the archive directly to the **root** of your Switch SD card. When prompted to merge folders, choose **Yes / Merge**. Do not place the files inside a subfolder.
+
+    After extraction, you should have the following layout on your SD card:
+
+    ```
+    SD:/
+    ├── atmosphere/
+    │   ├── kips/
+    │   │   └── hoc.kip                          ← KIP patch
+    │   └── contents/
+    │       └── 00FF0000636C6BFF/                ← hoc-clk sysmodule
+    │           └── exefs.nsp
+    └── config/
+        └── horizon-oc/                          ← overlay config & profiles
+    ```
+
+    <Note>
+      The Ultrahand overlay package for Horizon OC is included in the release archive and will be placed in the correct location automatically during extraction.
+    </Note>
+  </Step>
+
+  <Step title="Configure your bootloader">
+    The KIP must be declared in your bootloader configuration so it loads at boot. Follow the tab for whichever bootloader you use.
+
+    <Tabs>
+      <Tab title="Hekate">
+        Open `hekate_ipl.ini` from the `bootloader/` directory on your SD card in a text editor. Find the boot entry you use for Atmosphere and add the following two lines inside that entry's `[config]` block:
+
+        ```ini
+        kip1=atmosphere/kips/hoc.kip
+        secmon=atmosphere/exosphere.bin
+        ```
+
+        A complete entry looks similar to this:
+
+        ```ini
+        [Atmosphere]
+        fss0=atmosphere/package3
+        kip1=atmosphere/kips/hoc.kip
+        secmon=atmosphere/exosphere.bin
+        atmosphere=1
+        ```
+
+        <Warning>
+          Both lines are required together. The `secmon` line ensures Atmosphere's exosphere security monitor is used. Omitting it may cause boot issues.
+        </Warning>
+      </Tab>
+      <Tab title="fusee">
+        No bootloader configuration changes are needed when using fusee. The KIP is discovered and loaded automatically from `atmosphere/kips/hoc.kip` by Atmosphere's own boot process.
+
+        <Note>
+          Ensure the `hoc.kip` file is present at `atmosphere/kips/hoc.kip` on your SD card. fusee loads all `.kip` files from that directory at startup.
+        </Note>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Eject the SD card and boot your Switch">
+    Safely eject the SD card from your computer, insert it into your Switch, and boot into Atmosphere using Hekate or fusee as normal. The `hoc-clk` sysmodule will start automatically in the background.
+  </Step>
+
+  <Step title="Verify the installation">
+    Once booted, open the Ultrahand overlay (hold **Minus** or your configured button combo). Navigate to the **Horizon OC** entry in the overlay menu.
+
+    If the sysmodule is running correctly, the overlay will connect to `hoc:clk` and display the current clock settings and hardware information. If you see a connection error, double-check that `hoc.kip` is in `atmosphere/kips/` and that your `hekate_ipl.ini` entry is correct (Hekate only).
+
+    <Note>
+      You can also verify the sysmodule is running by checking **Atmosphere's** content list. The title ID `00FF0000636C6BFF` should appear as an active process in any sysmodule manager overlay.
+    </Note>
+  </Step>
+</Steps>
+
+## File Reference
+
+| Path on SD Card | Description |
+|---|---|
+| `atmosphere/kips/hoc.kip` | Kernel Initial Process — patches clock and voltage tables at boot |
+| `atmosphere/contents/00FF0000636C6BFF/` | `hoc-clk` background sysmodule (IPC service `hoc:clk`) |
+| `config/horizon-oc/` | Overlay configuration files and saved clock profiles |
+
+## Uninstallation
+
+To fully remove Horizon OC:
+
+1. **Hekate users only:** Open `hekate_ipl.ini` and remove the `kip1=atmosphere/kips/hoc.kip` line from your boot entry.
+2. Delete `atmosphere/kips/hoc.kip` from your SD card.
+3. Delete the `atmosphere/contents/00FF0000636C6BFF/` directory.
+4. Optionally, delete `config/horizon-oc/` to remove saved profile data.
+
+After rebooting, the Switch will return to stock Atmosphere clock behaviour.

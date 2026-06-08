@@ -1,0 +1,175 @@
+---
+title: "Build Horizon OC from Source"
+sidebarTitle: "Building"
+description: "Compile Horizon OC from source using devkitPro and devkitA64, including the Atmosphere patches, hoc-clk sysmodule, and Ultrahand overlay components."
+---
+
+Horizon OC is built from three main components: a patched Atmosphere loader KIP that carries the OC configuration into the kernel early-boot environment, the `hoc-clk` sysmodule and Ultrahand overlay that manage clocks at runtime, and the Monitor overlay for real-time telemetry. Building from source gives you full control over which patches are applied, lets you audit every line of code that runs on your console, and is required if you want to contribute changes back to the project. The build system is a shell script that orchestrates devkitA64, the standard Atmosphere toolchain, and `make` — no custom build tooling is needed beyond the standard Switch homebrew environment.
+
+## Prerequisites
+
+Before cloning any repositories, ensure the following are installed and on your `PATH`:
+
+- **devkitPro with `switch-dev`** — provides the `aarch64-none-elf-` cross-compiler, `make`, and the Switch system libraries. Install from [https://devkitpro.org/wiki/Getting_Started](https://devkitpro.org/wiki/Getting_Started).
+- **Atmosphere build environment** — Horizon OC patches the Atmosphere loader, so you need the full Atmosphere build dependencies (Python 3, `make`, `hactool`, etc.). See the Atmosphere build guide at [https://github.com/Atmosphere-NX/Atmosphere/blob/master/docs/building.md](https://github.com/Atmosphere-NX/Atmosphere/blob/master/docs/building.md).
+- **`hactool`** — used by `build.sh` to decompress the compiled loader KIP. Usually installed as part of the Atmosphere build setup.
+
+<Note>
+Horizon OC pins to a specific Atmosphere version. The required version is recorded in `ams_ver.txt` at the repository root. As of this writing that version is **1.11.1**. Clone the matching Atmosphere tag/commit to avoid API mismatches that will fail to compile.
+</Note>
+
+## Build Steps
+
+<Steps>
+  <Step title="Install devkitPro with switch-dev">
+    Follow the official devkitPro getting-started guide for your OS. After installation, confirm that `dkp-pacman` (or your package manager) has installed the `switch-dev` group:
+
+    ```bash
+    dkp-pacman -S switch-dev
+    ```
+
+    Verify the toolchain is on your path:
+
+    ```bash
+    aarch64-none-elf-gcc --version
+    ```
+  </Step>
+
+  <Step title="Set up the Atmosphere build environment">
+    Follow the Atmosphere build documentation to install all required Python packages and native tools. The key dependency is `hactool`, which `build.sh` calls directly:
+
+    ```bash
+    hactool --version
+    ```
+
+    If `hactool` is not found, build it from source or install it via devkitPro:
+
+    ```bash
+    dkp-pacman -S hactool
+    ```
+  </Step>
+
+  <Step title="Clone Atmosphere at the pinned version">
+    Clone the official Atmosphere repository and check out the version pinned in `ams_ver.txt` (`1.11.1`):
+
+    ```bash
+    git clone https://github.com/Atmosphere-NX/Atmosphere.git
+    cd Atmosphere
+    git checkout 1.11.1
+    cd ..
+    ```
+  </Step>
+
+  <Step title="Clone Horizon OC (develop branch)">
+    Clone the Horizon OC repository with all submodules:
+
+    ```bash
+    git clone https://github.com/Horizon-OC/Horizon-OC.git --recurse-submodules
+    cd Horizon-OC
+    ```
+
+    The `--recurse-submodules` flag is required to pull in the `hoc-clk` and Monitor overlay submodules. Without it the build will fail at the `hoc-clk` step.
+  </Step>
+
+  <Step title="Create the build directory">
+    Inside the cloned Horizon OC repository, create a folder named `build`:
+
+    ```bash
+    mkdir build
+    ```
+
+    This directory is where `build.sh` expects to find the Atmosphere source tree before it applies patches.
+  </Step>
+
+  <Step title="Copy Atmosphere files into the build folder">
+    Copy the contents of your cloned Atmosphere repository into the `build` directory:
+
+    ```bash
+    cp -r /path/to/Atmosphere/. build/
+    ```
+
+    `build.sh` patches the loader and exosphere in-place inside `build/`, so the original Atmosphere clone remains untouched and can be reused for subsequent builds.
+  </Step>
+
+  <Step title="Run the build script">
+    From the Horizon OC repository root, run:
+
+    ```bash
+    ./build.sh
+    ```
+
+    The script performs the following steps automatically:
+
+    1. Patches `build/stratosphere/loader/` with the Horizon OC OC loader sources.
+    2. Patches `build/exosphere/` with the Atmosphere-Patches (EMC access table, RTC/PMC table, SMC register access, memory layout).
+    3. Compiles the patched loader with `make -j$(nproc)` and extracts the output KIP using `hactool`.
+    4. Compiles the patched exosphere.
+    5. Builds the `hoc-clk` sysmodule and Ultrahand overlay via `Source/hoc-clk/build.sh`.
+    6. Builds the `Horizon-OC-Monitor` overlay with `make`.
+    7. Copies all output artefacts into `dist/`.
+
+    ```bash
+    # Abridged build.sh output paths:
+    dist/atmosphere/kips/hoc.kip          # Patched loader KIP
+    dist/atmosphere/exosphere.bin         # Patched exosphere
+    dist/switch/.overlays/Horizon-OC-Monitor.ovl  # Monitor overlay
+    # hoc-clk dist/ is merged in from Source/hoc-clk/dist/
+    ```
+
+    <Tip>
+    Build times vary by machine but expect 5–15 minutes for a clean build on a modern desktop. Subsequent incremental builds are faster because only changed translation units are recompiled.
+    </Tip>
+  </Step>
+</Steps>
+
+## Project Structure
+
+After cloning, the repository is organised as follows:
+
+```
+Horizon-OC/
+├── Source/
+│   ├── Atmosphere/                  # Patched Atmosphere loader (OC modifications)
+│   │   └── stratosphere/loader/     # Loader source with CustomizeTable, OC patches
+│   ├── Atmosphere-Patches/          # Exosphere patches (EMC/PMC/RTC access tables)
+│   ├── hoc-clk/                     # Clock management sysmodule + Ultrahand overlay
+│   ├── Horizon-OC-Monitor/          # Real-time Monitor overlay
+│   └── Benchmark-Toolbox/           # FurMark-based benchmark application
+├── dist/                            # Pre-built distribution files (SD card layout)
+├── timings/                         # Memory timing presets
+│   └── Mariko/
+│       └── AA/
+│           ├── 1331/                # 1333 MT/s timing files
+│           ├── 1600/                # 1600 MT/s timing files
+│           ├── 1866/                # 1866 MT/s timing files
+│           └── 2133/                # 2133 MT/s timing files
+├── build.sh                         # Main build orchestration script
+├── build_noexo.sh                   # Build without recompiling exosphere
+├── ams_ver.txt                      # Pinned Atmosphere version (1.11.1)
+├── COMPILING.md                     # Compilation instructions
+├── CONTRIBUTING.md                  # Contribution guidelines
+└── SECURITY.md                      # Security policy and vulnerability reporting
+```
+
+<Note>
+The `dist/` directory contains pre-built binaries for users who do not want to build from source. If you are distributing a custom build, replace the relevant files in `dist/` after building rather than copying your build output manually.
+</Note>
+
+## Contributing
+
+Contributions to Horizon OC are welcome under the following rules, as stated in `CONTRIBUTING.md`:
+
+- **Obey GPL-2.0 and all other relevant licenses.** All source files in the repository are licensed under GPL-2.0. Any contribution must be compatible with this license.
+- **No piracy.** Do not submit code that enables, facilitates, or is derived from piracy of Nintendo software or hardware.
+- **No dangerous tables or code without prior consent.** Do not add CPU/GPU/EMC voltage tables, timing presets, or other values that could cause hardware damage without explicit review and consent from the maintainers.
+
+To contribute, open a pull request against the `develop` branch on GitHub. For discussion before submitting, reach out to the maintainers on Discord.
+
+## Security
+
+To report a security vulnerability or safety-critical issue in Horizon OC, contact the maintainers directly on Discord:
+
+- **Souldbminer** — `souldbminer`
+- **Lightos_** — `lightos_`
+
+Do not open a public GitHub issue for security vulnerabilities. See [SECURITY.md](https://github.com/Horizon-OC/Horizon-OC/blob/develop/SECURITY.md) for the full supported version matrix.

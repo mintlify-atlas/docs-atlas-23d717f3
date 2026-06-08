@@ -1,0 +1,107 @@
+---
+title: "Using the Horizon OC Ultrahand Overlay"
+sidebarTitle: "Overlay"
+description: "Navigate the Horizon OC Ultrahand overlay to set clocks, apply temporary overrides, and access settings — all without leaving your game."
+---
+
+The Horizon OC Ultrahand overlay is your primary interface for controlling clocks in real time. It runs as an Ultrahand plugin on top of Atmosphere and communicates with the `hoc-clk` sysmodule to read system state and apply frequency changes — all without suspending or exiting your current game.
+
+## Opening the Overlay
+
+Hold the button combo configured in Ultrahand (default: **L + R + DPad Down**) from anywhere in the system UI or inside a game. The Ultrahand menu will appear. Scroll down to **Horizon OC** and press **A** to open it.
+
+<Note>
+If the overlay displays **"Could not connect to hoc-clk sysmodule. Please make sure everything is correctly installed and enabled."**, the `hoc-clk` sysmodule is not running. Verify that `hoc-clk` is present in `atmosphere/contents/` and that Atmosphere is fully loaded. A cold reboot is usually required after a fresh install.
+</Note>
+
+## Navigation Controls
+
+| Button | Action |
+|---|---|
+| **DPad Up / Down** | Move between menu items |
+| **A** | Select / confirm |
+| **B** | Go back one level |
+| **Y** | Show info tooltip (where available) |
+| **+** (Plus) | Close the overlay |
+
+## Main Menu Structure
+
+The main menu presents five entries. Each one maps to a distinct configuration context.
+
+<CardGroup cols={2}>
+  <Card title="Edit App Profile" icon="gamepad">
+    Configure per-game CPU, GPU, and RAM clock profiles for the title currently running in the foreground. Changes persist to disk under the game's title ID.
+  </Card>
+  <Card title="Edit Global Profile" icon="globe">
+    Configure clock profiles that apply to every title that does not have its own App Profile. Acts as the system-wide default.
+  </Card>
+  <Card title="Temporary Overrides" icon="bolt">
+    Apply immediate clock changes to CPU, GPU, or RAM. These overrides are session-only — they reset automatically on the next boot and do not write to any profile.
+  </Card>
+  <Card title="Settings" icon="gear">
+    Access all persistent configuration: General, Governor, Safety, KIP, RAM, CPU, GPU, Display, and Experimental settings.
+  </Card>
+</CardGroup>
+
+The fifth entry, **About**, shows the current Horizon OC version, CUST revision, KIP version, hardware information, and project credits.
+
+## Profile Types at a Glance
+
+Understanding the three ways to change clocks helps you pick the right tool for the job.
+
+| Type | Scope | Persists? | How to Set |
+|---|---|---|---|
+| **App Profile** | One specific title (by title ID) | ✅ Yes | Edit App Profile (game must be running) |
+| **Global Profile** | All titles without an App Profile | ✅ Yes | Edit Global Profile |
+| **Temporary Override** | System-wide, immediate | ❌ Resets on boot | Temporary Overrides |
+
+<Note>
+App Profile takes precedence over Global Profile. If neither is set, Horizon OC falls back to system defaults. See [Profiles](/configuration/profiles) for a full explanation of priority and profile slots.
+</Note>
+
+## Settings Submenus
+
+The **Settings** entry opens a menu containing all persistent configuration sections. Each subsection groups related options.
+
+<CardGroup cols={2}>
+  <Card title="General Settings" icon="sliders">
+    Polling interval, uncapped clocks, overwrite boost mode, thermal throttle, battery charge current, and input current limit.
+  </Card>
+  <Card title="Governor Settings" icon="chart-line">
+    CPU and GPU governor overrides, DVFS mode, DVFS offset, GPU scheduling, and CPU governor minimum frequency.
+  </Card>
+  <Card title="Safety Settings" icon="shield">
+    Thermal throttle threshold and related safety caps.
+  </Card>
+  <Card title="RAM Settings" icon="memory">
+    KIP-level EMC clock, voltage, step mode, and memory timing configuration.
+  </Card>
+  <Card title="CPU Settings" icon="microchip">
+    KIP-level CPU max clock, boost clock, undervolt, and voltage limits for both Mariko and Erista hardware.
+  </Card>
+  <Card title="GPU Settings" icon="display">
+    KIP-level GPU undervolt level, per-frequency voltage table, and voltage limits.
+  </Card>
+  <Card title="Display Settings" icon="sun">
+    Display refresh rate override and max handheld display clock.
+  </Card>
+  <Card title="Experimental" icon="flask">
+    Features gated behind `enable_experimental_settings`. Enable this toggle to reveal the section.
+  </Card>
+</CardGroup>
+
+A **Save KIP Settings** button appears at the top of the Settings menu. KIP changes written through the RAM, CPU, and GPU submenus are not applied until you press this button and reboot. See [KIP Settings](/configuration/kip-settings) for details.
+
+### General Settings Options
+
+The General Settings submenu exposes the following runtime configuration keys:
+
+| Display Name | Config Key | Default | Description |
+|---|---|---|---|
+| Polling Interval (ms) | `poll_interval_ms` | `300` | How often (in milliseconds) `hoc-clk` reads the current context and applies profile frequencies. |
+| Uncapped Clocks | `uncapped_clocks` | `0` (off) | Allow clock frequencies beyond the platform's officially rated maximums. |
+| Overwrite Boost Mode | `ow_boost` | `0` (off) | Replace the system's automatic boost-mode clock with the profile-specified frequency. |
+
+<Warning>
+Enabling **Uncapped Clocks** removes frequency caps enforced by the platform. Only use this alongside appropriate KIP-level voltage and thermal configuration. Running silicon beyond rated limits without proper thermal headroom can cause instability or permanent damage.
+</Warning>
